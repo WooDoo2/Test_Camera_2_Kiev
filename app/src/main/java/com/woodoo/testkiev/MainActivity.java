@@ -22,6 +22,7 @@ import android.view.TextureView;
 import android.view.View;
 import android.widget.Button;
 
+import java.io.DataOutputStream;
 import java.io.File;
 
 import android.Manifest;
@@ -59,10 +60,13 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -72,7 +76,6 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 public class MainActivity extends ParentActivity {
-    private static final String TAG = "mylog";
     private TextureView textureView;
     private String cameraId;
     protected CameraDevice cameraDevice;
@@ -152,6 +155,7 @@ public class MainActivity extends ParentActivity {
                     @Override
                     public void run() {
                         Log.d("mylog", "mTimer run");
+                        takePicture();
                     }
                 }, 0, 1000);
             }
@@ -184,7 +188,6 @@ public class MainActivity extends ParentActivity {
     private final CameraDevice.StateCallback stateCallback = new CameraDevice.StateCallback() {
         @Override
         public void onOpened(CameraDevice camera) {
-            Log.e(TAG, "onOpened");
             cameraDevice = camera;
             createCameraPreview();
         }
@@ -220,7 +223,6 @@ public class MainActivity extends ParentActivity {
 
     public void takePicture() {
         if (null == cameraDevice) {
-            Log.e(TAG, "cameraDevice is null");
             return;
         }
         CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
@@ -285,9 +287,11 @@ public class MainActivity extends ParentActivity {
                 @Override
                 public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result) {
                     super.onCaptureCompleted(session, request, result);
-                    app.makeToast("Saved2:" + filePath);
+                    //app.makeToast("Saved2:" + filePath);
                     createCameraPreview();
-                    new FileToServer(filePath);
+                    //new FileToServer(filePath);
+                    //tvDetails.setText("dsfdf");
+                    sendFileToServer(filePath);
                 }
             };
             cameraDevice.createCaptureSession(outputSurfaces, new CameraCaptureSession.StateCallback() {
@@ -308,6 +312,8 @@ public class MainActivity extends ParentActivity {
             e.printStackTrace();
         }
     }
+
+
 
     protected void createCameraPreview() {
         try {
@@ -373,8 +379,8 @@ public class MainActivity extends ParentActivity {
     }
 
     protected void updatePreview() {
-        if (null == cameraDevice) {
-            Log.e(TAG, "updatePreview error, return");
+        if (cameraDevice==null) {
+            return;
         }
         captureRequestBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
         try {
@@ -408,7 +414,6 @@ public class MainActivity extends ParentActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        Log.e(TAG, "onResume");
         startBackgroundThread();
         if (textureView.isAvailable()) {
             openCamera();
@@ -420,14 +425,11 @@ public class MainActivity extends ParentActivity {
 
     @Override
     protected void onPause() {
-        Log.e(TAG, "onPause");
         //closeCamera();
         stopBackgroundThread();
-
         if (mTimer != null) {
             mTimer.cancel();
         }
-
         super.onPause();
     }
 
@@ -480,8 +482,53 @@ public class MainActivity extends ParentActivity {
             }
             return null;
         } catch (Exception e) {
-            Log.e(TAG, "Error during camera init");
+            Log.e("mylog", "Error during camera init");
             return null;
+        }
+    }
+
+
+    private void sendFileToServer(String filePath) {
+        Socket socket = null;
+        DataOutputStream dataOutputStream = null;
+        File file = new File(filePath);
+        try {
+            // Create a new Socket instance and connect to host
+            //socket = new Socket("176.107.187.129", 1502);
+            socket = new Socket();
+            socket.connect(new InetSocketAddress("176.107.187.129", 1500), 5000);
+            Log.d("mylog", "socket.connected");
+            dataOutputStream = new DataOutputStream(socket.getOutputStream());
+            FileInputStream fileInputStream = new FileInputStream(file);
+
+            byte[] buffer = new byte[4096];
+
+            while (fileInputStream.read(buffer) > 0) {
+                dataOutputStream.write(buffer);
+            }
+            fileInputStream.close();
+
+        } catch (IOException e) {
+            //e.printStackTrace();
+            Log.e("mylog", e.toString());
+        } finally {
+            if (socket != null) {
+                try {
+                    Log.d("mylog", "closing the socket");
+                    socket.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
+
+            if (dataOutputStream != null) {
+                try {
+                    dataOutputStream.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
         }
     }
 }
