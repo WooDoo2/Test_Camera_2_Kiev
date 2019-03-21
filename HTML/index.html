@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<body>
+<script type="text/JavaScript">
+    var socket = new WebSocket('ws://176.107.187.129:1502/');
+    socket.onopen = function () {
+        alert("Соединение установлено.");
+    };
+
+    socket.onclose = function(event) {
+        /*if (event.wasClean) {
+            alert('Соединение закрыто чисто');
+        } else {
+            alert('Обрыв соединения');
+        }*/
+        alert('Код: ' + event.code + ' причина: ' + event.reason);
+    };
+
+    socket.onmessage = function(event) {
+        alert("Получены данные " + event.data);
+    };
+
+    socket.onerror = function(error) {
+        alert("Ошибка " + error.message);
+    };
+
+
+    /*socket.onmessage = function (event) {
+        var img = document.createElement('img');
+        var urlObject = URL.createObjectURL(event.data);
+        img.src = urlObject;
+        document.body.appendChild(img);
+    }*/
+</script>
+</body>
+</html>
