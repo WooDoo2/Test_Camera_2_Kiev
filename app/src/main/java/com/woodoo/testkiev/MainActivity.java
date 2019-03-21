@@ -1,6 +1,7 @@
 package com.woodoo.testkiev;
 
 import android.Manifest;
+import android.content.pm.ActivityInfo;
 import android.graphics.Rect;
 import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraDevice;
@@ -186,6 +187,8 @@ public class MainActivity extends ParentActivity {
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 app.pref.zoomLevel= progress;
                 tvZoom.setText(app.pref.zoomLevel+"");
+                closeCamera();
+                openCamera();
             }
         });
     }
@@ -316,10 +319,9 @@ public class MainActivity extends ParentActivity {
                 public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result) {
                     super.onCaptureCompleted(session, request, result);
                     //app.makeToast("Saved2:" + filePath);
-                    createCameraPreview();
                     //new FileToServer(filePath);
-                    //tvDetails.setText("dsfdf");
                     sendFileToServer(filePath);
+                    createCameraPreview();
                 }
             };
             cameraDevice.createCaptureSession(outputSurfaces, new CameraCaptureSession.StateCallback() {
@@ -349,16 +351,25 @@ public class MainActivity extends ParentActivity {
             texture.setDefaultBufferSize(imageDimension.getWidth(), imageDimension.getHeight());
             Surface surface = new Surface(texture);
             captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+            captureRequestBuilder.addTarget(surface);
             if (app.pref.isFlash) {
                 captureRequestBuilder.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_TORCH);
             } else {
                 captureRequestBuilder.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_OFF);
             }
 
-            Rect zoomRect = getZoomRect(app.pref.zoomLevel);
-            //zoomCropPreview = getZoomRect(zoomLevel, activeRect.width(), activeRect.height());
-            captureRequestBuilder.set(CaptureRequest.SCALER_CROP_REGION, zoomRect);
-            captureRequestBuilder.addTarget(surface);
+            if(app.pref.zoomLevel>0){
+                Rect zoomRect = getZoomRect(app.pref.zoomLevel);
+                if(app.pref.zoomLevel==9){
+                    zoomRect = new Rect(0, 0, 200, 200);
+                }
+                //zoomCropPreview = getZoomRect(zoomLevel, activeRect.width(), activeRect.height());
+                captureRequestBuilder.set(CaptureRequest.SCALER_CROP_REGION, zoomRect);
+                tvDetails.append(zoomRect.width()+" / "+zoomRect.height());
+            }
+
+
+
 
             cameraDevice.createCaptureSession(Arrays.asList(surface), new CameraCaptureSession.StateCallback() {
                 @Override
@@ -412,6 +423,7 @@ public class MainActivity extends ParentActivity {
             return;
         }
         captureRequestBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
+
         try {
             cameraCaptureSessions.setRepeatingRequest(captureRequestBuilder.build(), null, mBackgroundHandler);
         } catch (CameraAccessException e) {
