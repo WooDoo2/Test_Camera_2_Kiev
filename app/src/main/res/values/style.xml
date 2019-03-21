@@ -1,0 +1,10 @@
+<resources>
+
+    <style name="tv_for_control">
+        <item name="android:textSize">25sp</item>
+        <item name="android:textColor">#fff</item>
+        <item name="android:gravity">center</item>
+        <item name="android:padding">@dimen/padding</item>
+    </style>
+
+</resources>
