@@ -136,7 +136,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     style="@style/tv_for_control"
-                    android:text="timer each sec" />
+                    android:text="timer iteration 500 ms" />
 
 
 

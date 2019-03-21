@@ -95,8 +95,9 @@ public class MainActivity extends ParentActivity {
     private DrawerLayout drawer;
 
     private Timer mTimer;
-    private Handler mHandler = new Handler();
-    private int iterationTime = 1000;
+
+    private int iterationTime = 500;
+    Socket socket = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -124,7 +125,7 @@ public class MainActivity extends ParentActivity {
         findViewById(R.id.btnMakePhoto).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                takePicture();
+                takePictureAndSend();
             }
         });
 
@@ -155,10 +156,10 @@ public class MainActivity extends ParentActivity {
                 mTimer.schedule(new TimerTask() {
                     @Override
                     public void run() {
-                        Log.d("mylog", "mTimer run");
-                        takePicture();
+                        //Log.d("mylog", "mTimer run");
+                        takePictureAndSend();
                     }
-                }, 0, 1000);
+                }, 0, iterationTime);
             }
         });
 
@@ -248,7 +249,7 @@ public class MainActivity extends ParentActivity {
         }
     }
 
-    public void takePicture() {
+    public void takePictureAndSend() {
         if (null == cameraDevice) {
             return;
         }
@@ -519,15 +520,20 @@ public class MainActivity extends ParentActivity {
 
 
     private void sendFileToServer(String filePath) {
-        Socket socket = null;
+
         DataOutputStream dataOutputStream = null;
         File file = new File(filePath);
         try {
             // Create a new Socket instance and connect to host
-            //socket = new Socket("176.107.187.129", 1502);
-            socket = new Socket();
-            socket.connect(new InetSocketAddress("176.107.187.129", 1500), 5000);
-            Log.d("mylog", "socket.connected");
+            //
+            if(socket==null || socket.isClosed()){
+                //socket = new Socket("176.107.187.129", 1502);
+                socket = new Socket();
+                socket.setKeepAlive(true);
+                socket.connect(new InetSocketAddress("176.107.187.129", 1500), 5000);
+                Log.d("mylog", "socket.connected");
+            }
+
             dataOutputStream = new DataOutputStream(socket.getOutputStream());
             FileInputStream fileInputStream = new FileInputStream(file);
 
@@ -538,18 +544,19 @@ public class MainActivity extends ParentActivity {
             }
             fileInputStream.close();
 
+            Log.d("mylog", "send successs");
         } catch (IOException e) {
             //e.printStackTrace();
             Log.e("mylog", e.toString());
         } finally {
-            if (socket != null) {
+            /*if (socket != null) {
                 try {
                     Log.d("mylog", "closing the socket");
                     socket.close();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-            }
+            }*/
 
 
             if (dataOutputStream != null) {
