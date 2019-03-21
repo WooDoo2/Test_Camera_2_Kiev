@@ -24,7 +24,7 @@ public class SplashActivity extends ParentActivity {
             public void run() {
                 strartMainActivity();
             }
-        }, 1000 * 0);
+        }, 1000 * 1);
     }
 
     private void strartMainActivity() {
