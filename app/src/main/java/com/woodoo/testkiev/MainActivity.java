@@ -365,7 +365,11 @@ public class MainActivity extends ParentActivity {
                 }
                 //zoomCropPreview = getZoomRect(zoomLevel, activeRect.width(), activeRect.height());
                 captureRequestBuilder.set(CaptureRequest.SCALER_CROP_REGION, zoomRect);
-                tvDetails.append(zoomRect.width()+" / "+zoomRect.height());
+                try {
+                    tvDetails.append(zoomRect.width()+" / "+zoomRect.height());
+                }catch (Exception e){}
+            }else{
+                tvDetails.append("no zoom");
             }
 
 
