@@ -55,6 +55,7 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.widget.Button;
+import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -158,6 +159,32 @@ public class MainActivity extends ParentActivity {
                         takePicture();
                     }
                 }, 0, 1000);
+            }
+        });
+
+
+        SeekBar seekZoom = (SeekBar) findViewById(R.id.seekZoom);
+        seekZoom.setProgress(app.pref.zoomLevel);
+        final TextView tvZoom = findViewById(R.id.tvZoom);
+        tvZoom.setText(app.pref.zoomLevel+"");
+        seekZoom.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+
+
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+
+            }
+
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                app.pref.zoomLevel= progress;
+                tvZoom.setText(app.pref.zoomLevel+"");
             }
         });
     }
@@ -327,7 +354,8 @@ public class MainActivity extends ParentActivity {
                 captureRequestBuilder.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_OFF);
             }
 
-            Rect zoomRect = getZoomRect(4);
+            Rect zoomRect = getZoomRect(app.pref.zoomLevel);
+            //zoomCropPreview = getZoomRect(zoomLevel, activeRect.width(), activeRect.height());
             captureRequestBuilder.set(CaptureRequest.SCALER_CROP_REGION, zoomRect);
             captureRequestBuilder.addTarget(surface);
 
@@ -430,6 +458,8 @@ public class MainActivity extends ParentActivity {
         if (mTimer != null) {
             mTimer.cancel();
         }
+
+        app.pref.save();
         super.onPause();
     }
 
@@ -454,7 +484,7 @@ public class MainActivity extends ParentActivity {
                 app.pref.isFlash = aSwitch.isChecked();
                 break;
         }
-        app.pref.save();
+
         closeCamera();
         openCamera();
         //drawer.closeDrawer(GravityCompat.START);
