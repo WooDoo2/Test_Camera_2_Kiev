@@ -520,12 +520,10 @@ public class MainActivity extends ParentActivity {
 
 
     private void sendFileToServer(String filePath) {
-
         DataOutputStream dataOutputStream = null;
         File file = new File(filePath);
         try {
-            // Create a new Socket instance and connect to host
-            //
+
             if(socket==null || socket.isClosed()){
                 //socket = new Socket("176.107.187.129", 1502);
                 socket = new Socket();
@@ -544,28 +542,36 @@ public class MainActivity extends ParentActivity {
             }
             fileInputStream.close();
 
+            dataOutputStream.flush();
             Log.d("mylog", "send successs");
         } catch (IOException e) {
             //e.printStackTrace();
             Log.e("mylog", e.toString());
-        } finally {
-            /*if (socket != null) {
+            if (socket != null) {
                 try {
-                    Log.d("mylog", "closing the socket");
                     socket.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
+                    socket=null;
+                } catch (IOException e1) {
+                    e1.printStackTrace();
                 }
-            }*/
-
-
+            }
             if (dataOutputStream != null) {
+                try {
+                    dataOutputStream.close();
+                } catch (IOException e1) {
+                    e1.printStackTrace();
+                }
+            }
+
+        } finally {
+
+            /*if (dataOutputStream != null) {
                 try {
                     dataOutputStream.close();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-            }
+            }*/
         }
     }
 }
