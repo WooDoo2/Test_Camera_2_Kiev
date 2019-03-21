@@ -368,8 +368,6 @@ public class MainActivity extends ParentActivity {
                 try {
                     tvDetails.append(zoomRect.width()+" / "+zoomRect.height());
                 }catch (Exception e){}
-            }else{
-                tvDetails.append("no zoom");
             }
 
 
