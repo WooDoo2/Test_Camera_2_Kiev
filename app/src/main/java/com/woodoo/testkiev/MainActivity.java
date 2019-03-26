@@ -23,6 +23,9 @@ import android.view.TextureView;
 import android.view.View;
 import android.widget.Button;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
+import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 
@@ -66,6 +69,8 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -552,6 +557,9 @@ public class MainActivity extends ParentActivity {
                 socket.connect(new InetSocketAddress("176.107.187.129", 1500), 5000);
                 Log.d("mylog", "socket.connected");
             }
+            /*DataInputStream in=new DataInputStream(new BufferedInputStream(socket.getInputStream()));
+            String message=in.readUTF();
+            Log.d("mylog", message);*/
 
             dataOutputStream = new DataOutputStream(socket.getOutputStream());
             FileInputStream fileInputStream = new FileInputStream(file);
@@ -562,9 +570,18 @@ public class MainActivity extends ParentActivity {
                 dataOutputStream.write(buffer);
             }
             fileInputStream.close();
-
+            dataOutputStream.writeUTF("EOF");
             dataOutputStream.flush();
             Log.d("mylog", "send successs");
+
+            //Get the return message from the server
+            /*InputStream is = socket.getInputStream();
+            InputStreamReader isr = new InputStreamReader(is);
+            BufferedReader br = new BufferedReader(isr);
+            String message = br.readLine();*/
+            //read the response
+
+
         } catch (IOException e) {
             //e.printStackTrace();
             Log.e("mylog", e.toString());
@@ -598,53 +615,5 @@ public class MainActivity extends ParentActivity {
 
 
 
-    private void sendFileToServer_old(String filePath) {
-        DataOutputStream dataOutputStream = null;
-        File file = new File(filePath);
-        try {
-            if(socket==null || socket.isClosed()){
-                //socket = new Socket("176.107.187.129", 1502);
-                socket = new Socket();
-                socket.setKeepAlive(true);
-                socket.connect(new InetSocketAddress("176.107.187.129", 1500), 5000);
-                Log.d("mylog", "socket.connected");
-            }
 
-            dataOutputStream = new DataOutputStream(socket.getOutputStream());
-            FileInputStream fileInputStream = new FileInputStream(file);
-
-            byte[] buffer = new byte[4096];
-
-            while (fileInputStream.read(buffer) > 0) {
-                dataOutputStream.write(buffer);
-            }
-            fileInputStream.close();
-
-            dataOutputStream.flush();
-            Log.d("mylog", "send successs");
-        } catch (IOException e) {
-            //e.printStackTrace();
-            Log.e("mylog", e.toString());
-
-
-        } finally {
-
-            if (dataOutputStream != null) {
-                try {
-                    dataOutputStream.close();
-                } catch (IOException e1) {
-                    e1.printStackTrace();
-                }
-            }
-            if (socket != null) {
-                try {
-                    socket.close();
-                    socket=null;
-                } catch (IOException e1) {
-                    e1.printStackTrace();
-                }
-            }
-
-        }
-    }
 }
