@@ -97,7 +97,7 @@ public class MainActivity extends ParentActivity {
 
     private Timer mTimer;
 
-    private int iterationTime = 500;
+    private int iterationTime = 1000;
     Socket socket = null;
 
     @Override
@@ -314,32 +314,40 @@ public class MainActivity extends ParentActivity {
                 }
             };
             reader.setOnImageAvailableListener(readerListener, mBackgroundHandler);
+
             final CameraCaptureSession.CaptureCallback captureListener = new CameraCaptureSession.CaptureCallback() {
                 @Override
                 public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result) {
                     super.onCaptureCompleted(session, request, result);
                     //app.makeToast("Saved2:" + filePath);
                     //new FileToServer(filePath);
+                    Log.d("mylog", "onCaptureCompleted");
                     sendFileToServer(filePath);
                     createCameraPreview();
                 }
             };
+
+
             cameraDevice.createCaptureSession(outputSurfaces, new CameraCaptureSession.StateCallback() {
                 @Override
                 public void onConfigured(CameraCaptureSession session) {
                     try {
+                        Log.d("mylog", "onConfigured");
                         session.capture(captureBuilder.build(), captureListener, mBackgroundHandler);
-                    } catch (CameraAccessException e) {
+                    } catch (Exception e) {
                         e.printStackTrace();
+                        Log.e("mylog", e.getMessage());
                     }
                 }
 
                 @Override
                 public void onConfigureFailed(CameraCaptureSession session) {
+                    Log.d("mylog", "onConfigureFailed");
                 }
             }, mBackgroundHandler);
-        } catch (CameraAccessException e) {
+        } catch (Exception e) {
             e.printStackTrace();
+            Log.e("mylog", e.getMessage());
         }
     }
 
@@ -428,8 +436,9 @@ public class MainActivity extends ParentActivity {
 
         try {
             cameraCaptureSessions.setRepeatingRequest(captureRequestBuilder.build(), null, mBackgroundHandler);
-        } catch (CameraAccessException e) {
+        } catch (Exception e) {
             e.printStackTrace();
+            Log.d("mylog", e.getMessage());
         }
     }
 
@@ -532,12 +541,10 @@ public class MainActivity extends ParentActivity {
         }
     }
 
-
     private void sendFileToServer(String filePath) {
         DataOutputStream dataOutputStream = null;
         File file = new File(filePath);
         try {
-
             if(socket==null || socket.isClosed()){
                 //socket = new Socket("176.107.187.129", 1502);
                 socket = new Socket();
@@ -586,6 +593,58 @@ public class MainActivity extends ParentActivity {
                     e.printStackTrace();
                 }
             }*/
+        }
+    }
+
+
+
+    private void sendFileToServer_old(String filePath) {
+        DataOutputStream dataOutputStream = null;
+        File file = new File(filePath);
+        try {
+            if(socket==null || socket.isClosed()){
+                //socket = new Socket("176.107.187.129", 1502);
+                socket = new Socket();
+                socket.setKeepAlive(true);
+                socket.connect(new InetSocketAddress("176.107.187.129", 1500), 5000);
+                Log.d("mylog", "socket.connected");
+            }
+
+            dataOutputStream = new DataOutputStream(socket.getOutputStream());
+            FileInputStream fileInputStream = new FileInputStream(file);
+
+            byte[] buffer = new byte[4096];
+
+            while (fileInputStream.read(buffer) > 0) {
+                dataOutputStream.write(buffer);
+            }
+            fileInputStream.close();
+
+            dataOutputStream.flush();
+            Log.d("mylog", "send successs");
+        } catch (IOException e) {
+            //e.printStackTrace();
+            Log.e("mylog", e.toString());
+
+
+        } finally {
+
+            if (dataOutputStream != null) {
+                try {
+                    dataOutputStream.close();
+                } catch (IOException e1) {
+                    e1.printStackTrace();
+                }
+            }
+            if (socket != null) {
+                try {
+                    socket.close();
+                    socket=null;
+                } catch (IOException e1) {
+                    e1.printStackTrace();
+                }
+            }
+
         }
     }
 }

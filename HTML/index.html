@@ -2,7 +2,7 @@
 <html>
 <body>
 <script type="text/JavaScript">
-    var socket = new WebSocket('ws://176.107.187.129:1502/');
+    var socket = new WebSocket('ws://176.107.187.129:1502/,["soap", "wamp"]');
     socket.onopen = function () {
         alert("Соединение установлено.");
     };
