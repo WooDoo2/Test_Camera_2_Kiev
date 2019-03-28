@@ -14,6 +14,28 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         />
+
+    <Button
+        android:id="@+id/btnJustSocket"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentBottom="true"
+        android:layout_marginRight="0dp"
+        android:layout_marginBottom="51dp"
+        android:text="Just Read" />
+
+    <Button
+        android:id="@+id/btnDisconectSocket"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentBottom="true"
+        android:layout_marginRight="0dp"
+        android:layout_marginBottom="100dp"
+        android:onClick="OnDisconectSocket"
+        android:text="Disconect Socket" />
+
     <Button
         android:id="@+id/btnMakePhoto"
         android:layout_width="wrap_content"

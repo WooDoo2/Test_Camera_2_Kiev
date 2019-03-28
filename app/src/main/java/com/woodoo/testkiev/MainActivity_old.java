@@ -1,38 +1,10 @@
 package com.woodoo.testkiev;
 
 import android.Manifest;
-import android.content.pm.ActivityInfo;
-import android.graphics.Rect;
-import android.hardware.camera2.CameraCaptureSession;
-import android.hardware.camera2.CameraDevice;
-import android.hardware.camera2.CaptureRequest;
-import android.media.ImageReader;
-import android.os.Handler;
-import android.os.HandlerThread;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.view.GravityCompat;
-import android.support.v4.widget.DrawerLayout;
-import android.support.v7.app.ActionBarDrawerToggle;
-import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
-import android.support.v7.widget.Toolbar;
-import android.util.Size;
-import android.util.SparseIntArray;
-import android.view.Surface;
-import android.view.TextureView;
-import android.view.View;
-import android.widget.Button;
-
-import java.io.BufferedInputStream;
-import java.io.BufferedReader;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.File;
-
-import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.ImageFormat;
+import android.graphics.Rect;
 import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
@@ -51,10 +23,11 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
-import android.support.v7.app.AppCompatActivity;
+import android.support.v4.widget.DrawerLayout;
+import android.support.v7.app.ActionBarDrawerToggle;
+import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.util.Size;
-import android.util.SparseIntArray;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
@@ -62,17 +35,13 @@ import android.widget.Button;
 import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
-import android.widget.Toast;
 
-import com.woodoo.testkiev.utils.ImageUtil;
-
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -80,11 +49,10 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 
-public class MainActivity extends ParentActivity /*implements TextureView.SurfaceTextureListener*/  {
+public class MainActivity_old extends ParentActivity /*implements TextureView.SurfaceTextureListener*/  {
     private TextureView textureView;
     private String cameraId;
     protected CameraDevice cameraDevice;
@@ -98,15 +66,14 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
     private Handler mBackgroundHandler;
     private HandlerThread mBackgroundThread;
 
+    private String filePath;
     private TextView tvDetails;
     private DrawerLayout drawer;
 
     private Timer mTimer;
 
-    //private int iterationTime = 100;
-    private int iterationTime = 2000;
+    private int iterationTime = 4000;
     Socket socket = null;
-    private byte[] jpegData;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -127,7 +94,7 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
         drawer.addDrawerListener(toggle);
         toggle.syncState();
 
-
+        filePath = Environment.getExternalStorageDirectory() + "/photo_to_send.jpg";
         textureView = (TextureView) findViewById(R.id.texture);
         textureView.setSurfaceTextureListener(textureListener);
 
@@ -286,28 +253,49 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
                 width = jpegSizes[0].getWidth();
                 height = jpegSizes[0].getHeight();
             }*/
-            //ImageReader reader = ImageReader.newInstance(width, height, ImageFormat.JPEG, 1);
-            ImageReader reader = ImageReader.newInstance(width, height, ImageFormat.YUV_420_888, 1);
+            ImageReader reader = ImageReader.newInstance(width, height, ImageFormat.JPEG, 1);
             List<Surface> outputSurfaces = new ArrayList<Surface>(2);
             outputSurfaces.add(reader.getSurface());
             outputSurfaces.add(new Surface(textureView.getSurfaceTexture()));
             final CaptureRequest.Builder captureBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
             captureBuilder.addTarget(reader.getSurface());
             captureBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
-
-
+            // Orientation
+            int rotation = getWindowManager().getDefaultDisplay().getRotation();
+            captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, 0);
+            final File file = new File(filePath);
             ImageReader.OnImageAvailableListener readerListener = new ImageReader.OnImageAvailableListener() {
                 @Override
                 public void onImageAvailable(ImageReader reader) {
-                    Image image = reader.acquireLatestImage();
-                    if (image != null) {
-                        //byte[] jpegData = ImageUtil.imageToByteArray(image);
-                        jpegData = ImageUtil.imageToByteArray(image);
-                        //ByteBuffer buffer = image.getPlanes()[0].getBuffer();
-                        //jpegData = new byte[buffer.capacity()];
+                    Image image = null;
+                    try {
+                        image = reader.acquireLatestImage();
+                        ByteBuffer buffer = image.getPlanes()[0].getBuffer();
+                        byte[] bytes = new byte[buffer.capacity()];
+                        buffer.get(bytes);
+                        save(bytes);
+                    } catch (FileNotFoundException e) {
+                        e.printStackTrace();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } finally {
+                        if (image != null) {
+                            image.close();
+                        }
                     }
                 }
 
+                private void save(byte[] bytes) throws IOException {
+                    OutputStream output = null;
+                    try {
+                        output = new FileOutputStream(file);
+                        output.write(bytes);
+                    } finally {
+                        if (null != output) {
+                            output.close();
+                        }
+                    }
+                }
             };
             reader.setOnImageAvailableListener(readerListener, mBackgroundHandler);
 
@@ -317,9 +305,9 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
                     super.onCaptureCompleted(session, request, result);
                     //app.makeToast("Saved2:" + filePath);
                     //new FileToServer(filePath);
-                    Log.d("mylog", "onCaptureCompleted "+jpegData.length);
-                    sendFileToServer(jpegData);
-                    //createCameraPreview();
+                    Log.d("mylog", "onCaptureCompleted");
+                    sendFileToServer(filePath);
+                    createCameraPreview();
                 }
             };
 
@@ -409,7 +397,7 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
             float maxZoom = (characteristics.get(CameraCharacteristics.SCALER_AVAILABLE_MAX_DIGITAL_ZOOM));
             // Add permission for camera and let user grant the permission
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CAMERA_PERMISSION);
+                ActivityCompat.requestPermissions(MainActivity_old.this, new String[]{Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CAMERA_PERMISSION);
                 return;
             }
             manager.openCamera(cameraId, stateCallback, null);
@@ -537,9 +525,9 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
         }
     }
 
-    private void sendFileToServer(byte[] bytes) {
+    private void sendFileToServer(String filePath) {
         DataOutputStream dataOutputStream = null;
-
+        File file = new File(filePath);
         try {
             if(socket==null || socket.isClosed()){
                 //socket = new Socket("176.107.187.129", 1502);
@@ -553,7 +541,14 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
             Log.d("mylog", message);*/
 
             dataOutputStream = new DataOutputStream(socket.getOutputStream());
-            dataOutputStream.write(bytes);
+            FileInputStream fileInputStream = new FileInputStream(file);
+
+            byte[] buffer = new byte[4096];
+
+            while (fileInputStream.read(buffer) > 0) {
+                dataOutputStream.write(buffer);
+            }
+            fileInputStream.close();
             dataOutputStream.flush();
             dataOutputStream.writeUTF("EOF");
             dataOutputStream.flush();
@@ -570,9 +565,9 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
             //read the response
 
 
-        } catch (Exception e) {
+        } catch (IOException e) {
             //e.printStackTrace();
-            Log.e("mylog", e.getMessage());
+            Log.e("mylog", e.toString());
             if (socket != null) {
                 try {
                     socket.close();
@@ -602,15 +597,6 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
     }
 
 
-    public void OnDisconectSocket(View view) {
-        if (socket != null) {
-            try {
-                socket.close();
-                socket=null;
-                Log.i("mylog", "socket=null");
-            } catch (Exception e1) {
-                Log.e("mylog", e1.getMessage());
-            }
-        }
-    }
+
+
 }
