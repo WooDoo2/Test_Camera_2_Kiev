@@ -6,10 +6,13 @@ import android.preference.PreferenceManager;
 
 
 public class MyPreferences {
-    public int zoomLevel;
     private Context context;
+    public float zoomLevel;
     public int cameraId;
     public boolean isFlash;
+    public int iso;
+    public int size_x;
+    public int size_y;
 
 
     public MyPreferences(Context ctx) {
@@ -26,14 +29,20 @@ public class MyPreferences {
         cameraId = sPref.getInt("cameraId", 0);
         zoomLevel = sPref.getInt("zoomLevel", 0);
         isFlash = sPref.getBoolean("isFlash", false);
+        iso = sPref.getInt("iso", 100);
+        size_x = sPref.getInt("size_x", 640);
+        size_y = sPref.getInt("size_y", 480);
     }
 
     public void save() {
         SharedPreferences sPref = PreferenceManager.getDefaultSharedPreferences(context);
         SharedPreferences.Editor ed = sPref.edit();
         ed.putInt("cameraId", cameraId);
-        ed.putInt("zoomLevel", zoomLevel);
+        ed.putFloat("zoomLevel", zoomLevel);
         ed.putBoolean("isFlash", isFlash);
+        ed.putInt("iso", iso);
+        ed.putInt("size_x", size_x);
+        ed.putInt("size_y", size_y);
         /*ed.putString("storageUri", storageUri.toString());
         ed.putString("deleteRecords", deleteRecords);
         ed.putString("methodRecord", methodRecord);

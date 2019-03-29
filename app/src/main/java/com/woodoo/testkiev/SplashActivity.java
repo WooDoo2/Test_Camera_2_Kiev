@@ -6,7 +6,7 @@ import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
 
 
-public class SplashActivity extends ParentActivity {
+public class SplashActivity extends AppCompatActivity {
 
 
     @Override

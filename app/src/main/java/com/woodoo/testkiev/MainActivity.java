@@ -1,6 +1,8 @@
 package com.woodoo.testkiev;
 
 import android.Manifest;
+import android.app.Service;
+import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.graphics.Rect;
 import android.hardware.camera2.CameraCaptureSession;
@@ -16,6 +18,7 @@ import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.Toolbar;
+import android.util.Range;
 import android.util.Size;
 import android.util.SparseIntArray;
 import android.view.Surface;
@@ -64,6 +67,7 @@ import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.woodoo.testkiev.services.ServiceParams;
 import com.woodoo.testkiev.utils.ImageUtil;
 
 import java.io.File;
@@ -84,7 +88,10 @@ import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import static com.woodoo.testkiev.services.ServiceParams.ACTION_NEW_SETTINGS;
+
 public class MainActivity extends ParentActivity /*implements TextureView.SurfaceTextureListener*/  {
+    public static final String TAG = MainActivity.class.getSimpleName();
     private TextureView textureView;
     private String cameraId;
     protected CameraDevice cameraDevice;
@@ -103,10 +110,12 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
 
     private Timer mTimer;
 
+    private int iterationTime = 80;
     //private int iterationTime = 100;
-    private int iterationTime = 2000;
+    //private int iterationTime = 2000;
     Socket socket = null;
     private byte[] jpegData;
+    private boolean isSocketInProgress = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -114,8 +123,34 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
 
         setContentView(R.layout.activity_main);
         initMain();
+
+        serviceStart();
     }
 
+    private void serviceStart() {
+        Intent i = new Intent(this, ServiceParams.class);
+        i.setAction(ServiceParams.COMMAND_START);
+        startService(i);
+    }
+
+    private void serviceStop() {
+        Intent i = new Intent(this, ServiceParams.class);
+        i.setAction(ServiceParams.COMMAND_STOP_SERVER);
+        startService(i);
+    }
+
+    @Override
+    public void anonceFromSevice(int action) {
+        switch (action){
+            case ACTION_NEW_SETTINGS:
+                closeCamera();
+                openCamera();
+                break;
+            /*case ACTION_NEW_SETTINGS: break;*/
+
+        }
+
+    }
 
 
     private void initMain() {
@@ -173,6 +208,8 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
                 mTimer.schedule(new TimerTask() {
                     @Override
                     public void run() {
+
+                        if(isSocketInProgress){return;}
                         Log.i("mylog", "mTimer run");
                         takePictureAndSend();
                         Log.i("mylog", "mTimer end");
@@ -183,7 +220,7 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
 
 
         SeekBar seekZoom = (SeekBar) findViewById(R.id.seekZoom);
-        seekZoom.setProgress(app.pref.zoomLevel);
+        seekZoom.setProgress((int) app.pref.zoomLevel);
         final TextView tvZoom = findViewById(R.id.tvZoom);
         tvZoom.setText(app.pref.zoomLevel+"");
         seekZoom.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
@@ -273,15 +310,16 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
         if (null == cameraDevice) {
             return;
         }
-        CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+        //CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
         try {
             /*CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraDevice.getId());
             Size[] jpegSizes = null;
             if (characteristics != null) {
                 jpegSizes = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP).getOutputSizes(ImageFormat.JPEG);
             }*/
-            int width = 640;
-            int height = 480;
+            //int width = 640; int height = 480;
+            int width = app.pref.size_x;
+            int height = app.pref.size_y;
             /*if (jpegSizes != null && 0 < jpegSizes.length) {
                 width = jpegSizes[0].getWidth();
                 height = jpegSizes[0].getHeight();
@@ -317,7 +355,7 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
                     super.onCaptureCompleted(session, request, result);
                     //app.makeToast("Saved2:" + filePath);
                     //new FileToServer(filePath);
-                    Log.d("mylog", "onCaptureCompleted "+jpegData.length);
+                    //Log.d("mylog", "onCaptureCompleted "+jpegData.length);
                     sendFileToServer(jpegData);
                     //createCameraPreview();
                 }
@@ -356,12 +394,26 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
             Surface surface = new Surface(texture);
             captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             captureRequestBuilder.addTarget(surface);
+            //set flash
             if (app.pref.isFlash) {
                 captureRequestBuilder.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_TORCH);
             } else {
                 captureRequestBuilder.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_OFF);
             }
 
+            //set iso
+            /*CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
+            Range<Integer> range2 = characteristics.get(CameraCharacteristics.SENSOR_INFO_SENSITIVITY_RANGE);
+            int max1 = range2.getUpper();//10000
+            int min1 = range2.getLower();//100
+            int iso = ((progress * (max1 - min1)) / 100 + min1);
+            captureRequestBuilder.set(CaptureRequest.SENSOR_SENSITIVITY, iso);*/
+            captureRequestBuilder.set(CaptureRequest.SENSOR_SENSITIVITY, app.pref.iso);
+
+            //set exposure
+
+
+            //set zoom
             if(app.pref.zoomLevel>0){
                 Rect zoomRect = getZoomRect(app.pref.zoomLevel);
                 if(app.pref.zoomLevel==9){
@@ -373,7 +425,6 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
                     tvDetails.append(zoomRect.width()+" / "+zoomRect.height());
                 }catch (Exception e){}
             }
-
 
 
 
@@ -413,6 +464,11 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
                 return;
             }
             manager.openCamera(cameraId, stateCallback, null);
+
+            /*Range<Integer> range2 = characteristics.get(CameraCharacteristics.SENSOR_INFO_SENSITIVITY_RANGE);
+            int max1 = range2.getUpper();//10000
+            int min1 = range2.getLower();//100
+            Log.d("mylog", max1+" "+min1);*/
 
             tvDetails.setText("camera id " + cameraId + "\n");
             tvDetails.append(imageDimension + "\n");
@@ -547,17 +603,21 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
                 socket.setKeepAlive(true);
                 socket.connect(new InetSocketAddress("176.107.187.129", 1500), 5000);
                 Log.d("mylog", "socket.connected");
+                isSocketInProgress = false;
             }
             /*DataInputStream in=new DataInputStream(new BufferedInputStream(socket.getInputStream()));
             String message=in.readUTF();
             Log.d("mylog", message);*/
 
+
+            isSocketInProgress = true;
             dataOutputStream = new DataOutputStream(socket.getOutputStream());
             dataOutputStream.write(bytes);
             dataOutputStream.flush();
             dataOutputStream.writeUTF("EOF");
             dataOutputStream.flush();
-            Log.d("mylog", "send successs");
+            Log.d("mylog", "send success "+jpegData.length);
+            isSocketInProgress = false;
 
             //Get the return message from the server
             /*BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -577,6 +637,7 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
                 try {
                     socket.close();
                     socket=null;
+                    isSocketInProgress = false;
                 } catch (IOException e1) {
                     e1.printStackTrace();
                 }
@@ -603,10 +664,12 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
 
 
     public void OnDisconectSocket(View view) {
+        isSocketInProgress = false;
         if (socket != null) {
             try {
                 socket.close();
                 socket=null;
+
                 Log.i("mylog", "socket=null");
             } catch (Exception e1) {
                 Log.e("mylog", e1.getMessage());

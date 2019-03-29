@@ -83,6 +83,10 @@ public class MainActivity_old extends ParentActivity /*implements TextureView.Su
         initMain();
     }
 
+    @Override
+    public void anonceFromSevice(int action) {
+
+    }
 
 
     private void initMain() {
@@ -150,7 +154,7 @@ public class MainActivity_old extends ParentActivity /*implements TextureView.Su
 
 
         SeekBar seekZoom = (SeekBar) findViewById(R.id.seekZoom);
-        seekZoom.setProgress(app.pref.zoomLevel);
+        //seekZoom.setProgress(app.pref.zoomLevel);
         final TextView tvZoom = findViewById(R.id.tvZoom);
         tvZoom.setText(app.pref.zoomLevel+"");
         seekZoom.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
