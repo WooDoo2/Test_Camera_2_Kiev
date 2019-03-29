@@ -67,6 +67,7 @@ import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.woodoo.testkiev.services.Camera2Service;
 import com.woodoo.testkiev.services.ServiceParams;
 import com.woodoo.testkiev.utils.ImageUtil;
 
@@ -90,7 +91,7 @@ import java.util.TimerTask;
 
 import static com.woodoo.testkiev.services.ServiceParams.ACTION_NEW_SETTINGS;
 
-public class MainActivity extends ParentActivity /*implements TextureView.SurfaceTextureListener*/  {
+public class MainActivity extends ParentActivity /*implements TextureView.SurfaceTextureListener*/ {
     public static final String TAG = MainActivity.class.getSimpleName();
     private TextureView textureView;
     private String cameraId;
@@ -110,11 +111,11 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
 
     private Timer mTimer;
 
-    private int iterationTime = 80;
+    //private int iterationTime = 80;
     //private int iterationTime = 100;
-    //private int iterationTime = 2000;
-    Socket socket = null;
+    private int iterationTime = 2000;
     private byte[] jpegData;
+    Socket socket = null;
     private boolean isSocketInProgress = false;
 
     @Override
@@ -122,9 +123,14 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_main);
-        initMain();
+        //initMain();
 
         serviceStart();
+        cameraServiceStart();
+    }
+
+    private void cameraServiceStart() {
+        startService(new Intent(this, Camera2Service.class));
     }
 
     private void serviceStart() {
@@ -141,7 +147,7 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
 
     @Override
     public void anonceFromSevice(int action) {
-        switch (action){
+        switch (action) {
             case ACTION_NEW_SETTINGS:
                 closeCamera();
                 openCamera();
@@ -196,10 +202,10 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
                     mTimer.cancel();
                 }
 
-                if(b){
-                    ((Button)v).setText("Stop timer");
-                }else{
-                    ((Button)v).setText("Start timer");
+                if (b) {
+                    ((Button) v).setText("Stop timer");
+                } else {
+                    ((Button) v).setText("Start timer");
                     return;
                 }
 
@@ -209,7 +215,9 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
                     @Override
                     public void run() {
 
-                        if(isSocketInProgress){return;}
+                        if (isSocketInProgress) {
+                            return;
+                        }
                         Log.i("mylog", "mTimer run");
                         takePictureAndSend();
                         Log.i("mylog", "mTimer end");
@@ -222,7 +230,7 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
         SeekBar seekZoom = (SeekBar) findViewById(R.id.seekZoom);
         seekZoom.setProgress((int) app.pref.zoomLevel);
         final TextView tvZoom = findViewById(R.id.tvZoom);
-        tvZoom.setText(app.pref.zoomLevel+"");
+        tvZoom.setText(app.pref.zoomLevel + "");
         seekZoom.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
 
             @Override
@@ -239,8 +247,8 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
 
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                app.pref.zoomLevel= progress;
-                tvZoom.setText(app.pref.zoomLevel+"");
+                app.pref.zoomLevel = progress;
+                tvZoom.setText(app.pref.zoomLevel + "");
                 closeCamera();
                 openCamera();
             }
@@ -333,6 +341,27 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
             captureBuilder.addTarget(reader.getSurface());
             captureBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
 
+            //set zoom
+            if (app.pref.zoomLevel > 0) {
+                Rect zoomRect = getZoomRect(app.pref.zoomLevel);
+                if (app.pref.zoomLevel == 9) {
+                    zoomRect = new Rect(0, 0, 200, 200);
+                }
+                //zoomCropPreview = getZoomRect(zoomLevel, activeRect.width(), activeRect.height());
+                captureBuilder.set(CaptureRequest.SCALER_CROP_REGION, zoomRect);
+            }
+
+            //set iso
+            captureBuilder.set(CaptureRequest.SENSOR_SENSITIVITY, app.pref.iso);
+
+            //set exposure
+            //or by just disabling auto-exposure, leaving auto-focus and auto-white-balance running:
+            if(app.pref.exposure!=0){
+                captureBuilder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_MODE_OFF);
+                //captureRequestBuilder.set(CaptureRequest.SENSOR_EXPOSURE_TIME, 500000000L);//0.5s
+                captureBuilder.set(CaptureRequest.SENSOR_EXPOSURE_TIME, app.pref.exposure);
+            }
+
 
             ImageReader.OnImageAvailableListener readerListener = new ImageReader.OnImageAvailableListener() {
                 @Override
@@ -357,7 +386,7 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
                     //new FileToServer(filePath);
                     //Log.d("mylog", "onCaptureCompleted "+jpegData.length);
                     sendFileToServer(jpegData);
-                    //createCameraPreview();
+                    createCameraPreview();
                 }
             };
 
@@ -386,7 +415,6 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
     }
 
 
-
     protected void createCameraPreview() {
         try {
             SurfaceTexture texture = textureView.getSurfaceTexture();
@@ -394,32 +422,23 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
             Surface surface = new Surface(texture);
             captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             captureRequestBuilder.addTarget(surface);
-            //set flash
             if (app.pref.isFlash) {
                 captureRequestBuilder.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_TORCH);
             } else {
                 captureRequestBuilder.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_OFF);
             }
 
-            //set iso
-            /*CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
-            Range<Integer> range2 = characteristics.get(CameraCharacteristics.SENSOR_INFO_SENSITIVITY_RANGE);
-            int max1 = range2.getUpper();//10000
-            int min1 = range2.getLower();//100
-            int iso = ((progress * (max1 - min1)) / 100 + min1);
-            captureRequestBuilder.set(CaptureRequest.SENSOR_SENSITIVITY, iso);*/
-            captureRequestBuilder.set(CaptureRequest.SENSOR_SENSITIVITY, app.pref.iso);
-
-            //set exposure
-
-
-            //set zoom
             if(app.pref.zoomLevel>0){
                 Rect zoomRect = getZoomRect(app.pref.zoomLevel);
                 if(app.pref.zoomLevel==9){
                     zoomRect = new Rect(0, 0, 200, 200);
                 }
                 //zoomCropPreview = getZoomRect(zoomLevel, activeRect.width(), activeRect.height());
+                try {
+                    Log.d("mylog", zoomRect.right+" "+zoomRect.bottom);
+                }catch (Exception e){
+
+                }
                 captureRequestBuilder.set(CaptureRequest.SCALER_CROP_REGION, zoomRect);
                 try {
                     tvDetails.append(zoomRect.width()+" / "+zoomRect.height());
@@ -481,7 +500,7 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
     }
 
     protected void updatePreview() {
-        if (cameraDevice==null) {
+        if (cameraDevice == null) {
             return;
         }
         captureRequestBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
@@ -518,19 +537,19 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
     @Override
     protected void onResume() {
         super.onResume();
-        startBackgroundThread();
+        /*startBackgroundThread();
         if (textureView.isAvailable()) {
             openCamera();
         } else {
             textureView.setSurfaceTextureListener(textureListener);
-        }
+        }*/
 
     }
 
     @Override
     protected void onPause() {
         //closeCamera();
-        stopBackgroundThread();
+        //stopBackgroundThread();
         if (mTimer != null) {
             mTimer.cancel();
         }
@@ -569,6 +588,7 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
 
     private Rect getZoomRect(float zoomLevel) {
         try {
+            zoomLevel=zoomLevel*5;
             CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
             CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraDevice.getId());
             float maxZoom = (characteristics.get(CameraCharacteristics.SCALER_AVAILABLE_MAX_DIGITAL_ZOOM)) * 10;
@@ -597,7 +617,7 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
         DataOutputStream dataOutputStream = null;
 
         try {
-            if(socket==null || socket.isClosed()){
+            if (socket == null || socket.isClosed()) {
                 //socket = new Socket("176.107.187.129", 1502);
                 socket = new Socket();
                 socket.setKeepAlive(true);
@@ -616,7 +636,7 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
             dataOutputStream.flush();
             dataOutputStream.writeUTF("EOF");
             dataOutputStream.flush();
-            Log.d("mylog", "send success "+jpegData.length);
+            Log.d("mylog", "send success " + jpegData.length);
             isSocketInProgress = false;
 
             //Get the return message from the server
@@ -636,7 +656,7 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
             if (socket != null) {
                 try {
                     socket.close();
-                    socket=null;
+                    socket = null;
                     isSocketInProgress = false;
                 } catch (IOException e1) {
                     e1.printStackTrace();
@@ -668,12 +688,21 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
         if (socket != null) {
             try {
                 socket.close();
-                socket=null;
+                socket = null;
 
                 Log.i("mylog", "socket=null");
             } catch (Exception e1) {
                 Log.e("mylog", e1.getMessage());
             }
         }
+    }
+
+    private boolean intArray(int[] intArray, int value) {
+        for (int i = 0; i < intArray.length; i++) {
+            if (intArray[i] == value) {
+                return true;
+            }
+        }
+        return false;
     }
 }

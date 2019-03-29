@@ -32,7 +32,7 @@ public class ServiceParams extends Service {
     private boolean isStop = false;
 
     private App app;
-    String stringData;
+    String lastStringData="";
 
 
     @Override
@@ -113,15 +113,15 @@ public class ServiceParams extends Service {
     private void getCommandFromSocket() {
         Socket socket = null;
         try {
-            /*socket = new Socket();
+            socket = new Socket();
             socket.connect(new InetSocketAddress("176.107.187.129", 1507), 5000);
             Log.d(TAG, "socket.connected");
             BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            stringData = input.readLine();*/
-            stringData = "{\"zoom\": 1.1, \"iso\": 100, \"exposure\": 0.1, \"size_x\": 640, \"size_y\": 480}";
-            if (stringData != null) {
-                Log.d(TAG, stringData);
-                JSONObject json = new JSONObject(stringData);
+            String newString = input.readLine();
+            //String newString  = "{\"zoom\": 1.1, \"iso\": 100, \"exposure\": 0.1, \"size_x\": 640, \"size_y\": 480}";
+            if (newString != null && !lastStringData.equals(newString)) {
+                Log.d(TAG, newString);
+                JSONObject json = new JSONObject(newString);
                 if(json.has("zoom")){
                     app.pref.zoomLevel = (float) json.getDouble("zoom");
                 }
@@ -129,7 +129,7 @@ public class ServiceParams extends Service {
                     app.pref.iso = json.getInt("iso");
                 }
                 if(json.has("exposure")){
-                    app.pref.exposure = json.getDouble("exposure");
+                    app.pref.exposure = (long) (json.getDouble("exposure")*1000000000L);
                 }
                 if(json.has("size_x")){
                     app.pref.size_x = json.getInt("size_x");
@@ -138,12 +138,13 @@ public class ServiceParams extends Service {
                     app.pref.size_y = json.getInt("size_y");
                 }
                 app.pref.save();
+                lastStringData = newString;
 
                 anons_action(ACTION_NEW_SETTINGS);
             }
 
         } catch (Exception e) {
-            Log.e(TAG, e.toString());
+            //Log.e(TAG, e.toString());
         } finally {
             if(socket!=null){
                 try {

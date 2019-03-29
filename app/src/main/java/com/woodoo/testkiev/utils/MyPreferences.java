@@ -13,6 +13,7 @@ public class MyPreferences {
     public int iso;
     public int size_x;
     public int size_y;
+    public long exposure;
 
 
     public MyPreferences(Context ctx) {
@@ -25,13 +26,21 @@ public class MyPreferences {
 
     private void read_preferences() {
         SharedPreferences sPref = PreferenceManager.getDefaultSharedPreferences(context);
-        String str = sPref.getString("storageUri", null);
-        cameraId = sPref.getInt("cameraId", 0);
-        zoomLevel = sPref.getInt("zoomLevel", 0);
+
+        cameraId = 0;
+        zoomLevel = 9;
+        isFlash = false;
+        iso = 100;
+        size_x = 640;
+        size_y = 480;
+        exposure = 0;
+        /*cameraId = sPref.getInt("cameraId", 0);
+        zoomLevel = sPref.getFloat("zoomLevel", 0);
         isFlash = sPref.getBoolean("isFlash", false);
         iso = sPref.getInt("iso", 100);
         size_x = sPref.getInt("size_x", 640);
         size_y = sPref.getInt("size_y", 480);
+        exposure = sPref.getLong("exposure", 0);*/
     }
 
     public void save() {
@@ -43,6 +52,8 @@ public class MyPreferences {
         ed.putInt("iso", iso);
         ed.putInt("size_x", size_x);
         ed.putInt("size_y", size_y);
+        ed.putLong("exposure", exposure);
+
         /*ed.putString("storageUri", storageUri.toString());
         ed.putString("deleteRecords", deleteRecords);
         ed.putString("methodRecord", methodRecord);
