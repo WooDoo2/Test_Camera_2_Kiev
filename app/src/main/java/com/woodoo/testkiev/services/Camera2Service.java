@@ -269,7 +269,8 @@ public class Camera2Service extends Service
             CaptureRequest.Builder captureBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
             captureBuilder.addTarget(imageReader.getSurface());
 
-            captureBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
+            //captureBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
+            captureBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.INFO_SUPPORTED_HARDWARE_LEVEL_FULL);
 
             //set iso
             captureBuilder.set(CaptureRequest.SENSOR_SENSITIVITY, app.pref.iso);
@@ -287,7 +288,7 @@ public class Camera2Service extends Service
 
             //set exposure
             //or by just disabling auto-exposure, leaving auto-focus and auto-white-balance running:
-            if(app.pref.exposure!=0){
+            if(app.pref.exposure>0){
                 captureBuilder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_MODE_OFF);
                 //captureRequestBuilder.set(CaptureRequest.SENSOR_EXPOSURE_TIME, 500000000L);//0.5s
                 captureBuilder.set(CaptureRequest.SENSOR_EXPOSURE_TIME, app.pref.exposure);

@@ -10,6 +10,7 @@ import android.media.ImageReader;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.os.Bundle;
@@ -61,12 +62,6 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
     private DrawerLayout drawer;
 
 
-    //private int iterationTime = 80;
-    //private int iterationTime = 100;
-    private int iterationTime = 2000;
-    private byte[] jpegData;
-    Socket socket = null;
-    private boolean isSocketInProgress = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -180,35 +175,16 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
                 app.pref.zoomLevel = progress;
                 tvZoom.setText(app.pref.zoomLevel + "");
 
-                openCamera();
+                //openCamera();
             }
         });
     }
 
 
-    TextureView.SurfaceTextureListener textureListener = new TextureView.SurfaceTextureListener() {
-        @Override
-        public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
-            openCamera();
-        }
-
-        @Override
-        public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
-            // Transform you image captured size according to the surface width and height
-        }
-
-        @Override
-        public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
-            return false;
-        }
-
-        @Override
-        public void onSurfaceTextureUpdated(SurfaceTexture surface) {
-        }
-    };
 
 
-    private void openCamera() {
+
+    /*private void openCamera() {
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CAMERA_PERMISSION);
@@ -216,7 +192,7 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
         }
 
 
-    }
+    }*/
 
 
     @Override
@@ -285,8 +261,8 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
         }
 
 
-        openCamera();
-        //drawer.closeDrawer(GravityCompat.START);
+        //openCamera();
+        drawer.closeDrawer(GravityCompat.START);
     }
 
 
@@ -300,7 +276,7 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
     }
 
 
-    public void OnDisconectSocket(View view) {
+    /*public void OnDisconectSocket(View view) {
         isSocketInProgress = false;
         if (socket != null) {
             try {
@@ -312,7 +288,7 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
                 Log.e("mylog", e1.getMessage());
             }
         }
-    }
+    }*/
 
 
     public void OnChaneSettingsClick(View view) {
@@ -328,11 +304,11 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
                 break;
             case R.id.btnChangeSettings2:
                 app.pref.zoomLevel = 10;
-                app.pref.iso = 100;//10000;
+                app.pref.iso = 10000;
                 app.pref.exposure = 500000000L;
                 app.pref.size_x = 300;
                 app.pref.size_y = 300;
-                app.pref.fps = 20;
+                app.pref.fps = 10;
                 break;
         }
         /*Intent i = new Intent(this, Camera2Service.class);
@@ -342,6 +318,5 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
         Intent i2 = new Intent(this, Camera2Service.class);
         i2.setAction(ServiceParams.COMMAND_CHANGE_SETTINGS);
         startService(i2);
-
     }
 }
