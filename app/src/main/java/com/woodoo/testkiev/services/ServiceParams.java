@@ -25,14 +25,15 @@ public class ServiceParams extends Service {
     public final static int ACTION_NEW_SETTINGS = 200;
 
     public final static String BROADCAST_BACK = "com.woodoo.testkiev.servicebackbroadcast";
-    public static final String COMMAND_START = "ACTION_PLAY";
-    public final static String COMMAND_STOP_SERVER = "ACTION_STOP_SERVER";
+    public static final String COMMAND_START = "COMMAND_START";
+    public final static String COMMAND_STOP_SERVER = "COMMAND_STOP_SERVER";
+    public final static String COMMAND_CHANGE_SETTINGS = "COMMAND_CHANGE_SETTINGS";
 
     private Thread timerThread;
     private boolean isStop = false;
 
     private App app;
-    String lastStringData="";
+    //String lastStringData="";
 
 
     @Override
@@ -41,9 +42,8 @@ public class ServiceParams extends Service {
     }
 
     public int onStartCommand(Intent intent, int flags, int startId) {
-        Log.d(TAG, "server onStartCommand "+intent.getAction());
-
         if (intent != null && (intent.getAction() instanceof String)) {
+            Log.d(TAG, "server onStartCommand "+intent.getAction());
             if (intent.getAction().equals(COMMAND_STOP_SERVER)) {
                 stopSelf();
             }
@@ -70,11 +70,13 @@ public class ServiceParams extends Service {
             public void run() {
                 while (!isStop) {
                     getCommandFromSocket();
+
                     try {
                         Thread.sleep(1000);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
+
                 }
             }
         });
@@ -118,8 +120,8 @@ public class ServiceParams extends Service {
             Log.d(TAG, "socket.connected");
             BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             String newString = input.readLine();
-            //String newString  = "{\"zoom\": 1.1, \"iso\": 100, \"exposure\": 0.1, \"size_x\": 640, \"size_y\": 480}";
-            if (newString != null && !lastStringData.equals(newString)) {
+            //String newString  = "{\"zoom\": 9, \"iso\": 100, \"exposure\": 0.1, \"size_x\": 640, \"size_y\": 480}";
+            if (newString != null) {
                 Log.d(TAG, newString);
                 JSONObject json = new JSONObject(newString);
                 if(json.has("zoom")){
@@ -130,6 +132,7 @@ public class ServiceParams extends Service {
                 }
                 if(json.has("exposure")){
                     app.pref.exposure = (long) (json.getDouble("exposure")*1000000000L);
+                                                                                //500000000L
                 }
                 if(json.has("size_x")){
                     app.pref.size_x = json.getInt("size_x");
@@ -137,10 +140,19 @@ public class ServiceParams extends Service {
                 if(json.has("size_y")){
                     app.pref.size_y = json.getInt("size_y");
                 }
-                app.pref.save();
-                lastStringData = newString;
-
+                if(json.has("fps")){
+                    double fps = json.getDouble("fps");
+                    if(fps>20){fps=20;}
+                    if(fps<0.1){fps=1;}
+                    app.pref.fps = (float)fps ;
+                }
+                //app.pref.save();
+                //lastStringData = newString;
                 anons_action(ACTION_NEW_SETTINGS);
+
+                Intent i = new Intent(this, Camera2Service.class);
+                i.setAction(ServiceParams.COMMAND_STOP_SERVER);
+                startService(i);
             }
 
         } catch (Exception e) {

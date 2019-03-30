@@ -2,6 +2,7 @@ package com.woodoo.testkiev;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.ImageFormat;
 import android.graphics.Rect;
@@ -18,7 +19,6 @@ import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.support.annotation.NonNull;
@@ -36,25 +36,22 @@ import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
 
-import com.woodoo.testkiev.services.SocketExampleThread;
+import com.woodoo.testkiev.services.Camera2Service;
+import com.woodoo.testkiev.services.ServiceParams;
+import com.woodoo.testkiev.utils.ImageUtil;
 
 import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
-public class MainActivity_old extends ParentActivity /*implements TextureView.SurfaceTextureListener*/  {
+public class MainActivity_with_camera extends ParentActivity /*implements TextureView.SurfaceTextureListener*/ {
+    public static final String TAG = MainActivity_with_camera.class.getSimpleName();
     private TextureView textureView;
     private String cameraId;
     protected CameraDevice cameraDevice;
@@ -68,25 +65,57 @@ public class MainActivity_old extends ParentActivity /*implements TextureView.Su
     private Handler mBackgroundHandler;
     private HandlerThread mBackgroundThread;
 
-    private String filePath;
     private TextView tvDetails;
     private DrawerLayout drawer;
 
     private Timer mTimer;
 
-    private int iterationTime = 4000;
+    //private int iterationTime = 80;
+    //private int iterationTime = 100;
+    private int iterationTime = 2000;
+    private byte[] jpegData;
     Socket socket = null;
+    private boolean isSocketInProgress = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_main);
-        initMain();
+        //initMain();
+
+        serviceStart();
+        cameraServiceStart();
+    }
+
+    private void cameraServiceStart() {
+        Intent i = new Intent(this, Camera2Service.class);
+        i.setAction(ServiceParams.COMMAND_START);
+        startService(i);
+    }
+
+    private void serviceStart() {
+        Intent i = new Intent(this, ServiceParams.class);
+        i.setAction(ServiceParams.COMMAND_START);
+        startService(i);
+    }
+
+    private void serviceStop() {
+        Intent i = new Intent(this, ServiceParams.class);
+        i.setAction(ServiceParams.COMMAND_STOP_SERVER);
+        startService(i);
     }
 
     @Override
     public void anonceFromSevice(int action) {
+        /*switch (action) {
+            case ACTION_NEW_SETTINGS:
+                closeCamera();
+                openCamera();
+                break;
+            *//*case ACTION_NEW_SETTINGS: break;*//*
+
+        }*/
 
     }
 
@@ -100,7 +129,7 @@ public class MainActivity_old extends ParentActivity /*implements TextureView.Su
         drawer.addDrawerListener(toggle);
         toggle.syncState();
 
-        filePath = Environment.getExternalStorageDirectory() + "/photo_to_send.jpg";
+
         textureView = (TextureView) findViewById(R.id.texture);
         textureView.setSurfaceTextureListener(textureListener);
 
@@ -134,10 +163,10 @@ public class MainActivity_old extends ParentActivity /*implements TextureView.Su
                     mTimer.cancel();
                 }
 
-                if(b){
-                    ((Button)v).setText("Stop timer");
-                }else{
-                    ((Button)v).setText("Start timer");
+                if (b) {
+                    ((Button) v).setText("Stop timer");
+                } else {
+                    ((Button) v).setText("Start timer");
                     return;
                 }
 
@@ -146,6 +175,10 @@ public class MainActivity_old extends ParentActivity /*implements TextureView.Su
                 mTimer.schedule(new TimerTask() {
                     @Override
                     public void run() {
+
+                        if (isSocketInProgress) {
+                            return;
+                        }
                         Log.i("mylog", "mTimer run");
                         takePictureAndSend();
                         Log.i("mylog", "mTimer end");
@@ -156,9 +189,9 @@ public class MainActivity_old extends ParentActivity /*implements TextureView.Su
 
 
         SeekBar seekZoom = (SeekBar) findViewById(R.id.seekZoom);
-        //seekZoom.setProgress(app.pref.zoomLevel);
+        seekZoom.setProgress((int) app.pref.zoomLevel);
         final TextView tvZoom = findViewById(R.id.tvZoom);
-        tvZoom.setText(app.pref.zoomLevel+"");
+        tvZoom.setText(app.pref.zoomLevel + "");
         seekZoom.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
 
             @Override
@@ -175,8 +208,8 @@ public class MainActivity_old extends ParentActivity /*implements TextureView.Su
 
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                app.pref.zoomLevel= progress;
-                tvZoom.setText(app.pref.zoomLevel+"");
+                app.pref.zoomLevel = progress;
+                tvZoom.setText(app.pref.zoomLevel + "");
                 closeCamera();
                 openCamera();
             }
@@ -246,62 +279,63 @@ public class MainActivity_old extends ParentActivity /*implements TextureView.Su
         if (null == cameraDevice) {
             return;
         }
-        CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+        //CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
         try {
             /*CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraDevice.getId());
             Size[] jpegSizes = null;
             if (characteristics != null) {
                 jpegSizes = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP).getOutputSizes(ImageFormat.JPEG);
             }*/
-            int width = 640;
-            int height = 480;
+            //int width = 640; int height = 480;
+            int width = app.pref.size_x;
+            int height = app.pref.size_y;
             /*if (jpegSizes != null && 0 < jpegSizes.length) {
                 width = jpegSizes[0].getWidth();
                 height = jpegSizes[0].getHeight();
             }*/
-            ImageReader reader = ImageReader.newInstance(width, height, ImageFormat.JPEG, 1);
+            //ImageReader reader = ImageReader.newInstance(width, height, ImageFormat.JPEG, 1);
+            ImageReader reader = ImageReader.newInstance(width, height, ImageFormat.YUV_420_888, 1);
             List<Surface> outputSurfaces = new ArrayList<Surface>(2);
             outputSurfaces.add(reader.getSurface());
             outputSurfaces.add(new Surface(textureView.getSurfaceTexture()));
             final CaptureRequest.Builder captureBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
             captureBuilder.addTarget(reader.getSurface());
             captureBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
-            // Orientation
-            int rotation = getWindowManager().getDefaultDisplay().getRotation();
-            captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, 0);
-            final File file = new File(filePath);
+
+            //set zoom
+            if (app.pref.zoomLevel > 0) {
+                Rect zoomRect = getZoomRect(app.pref.zoomLevel);
+                if (app.pref.zoomLevel == 9) {
+                    zoomRect = new Rect(0, 0, 200, 200);
+                }
+                //zoomCropPreview = getZoomRect(zoomLevel, activeRect.width(), activeRect.height());
+                captureBuilder.set(CaptureRequest.SCALER_CROP_REGION, zoomRect);
+            }
+
+            //set iso
+            captureBuilder.set(CaptureRequest.SENSOR_SENSITIVITY, app.pref.iso);
+
+            //set exposure
+            //or by just disabling auto-exposure, leaving auto-focus and auto-white-balance running:
+            if(app.pref.exposure!=0){
+                captureBuilder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_MODE_OFF);
+                //captureRequestBuilder.set(CaptureRequest.SENSOR_EXPOSURE_TIME, 500000000L);//0.5s
+                captureBuilder.set(CaptureRequest.SENSOR_EXPOSURE_TIME, app.pref.exposure);
+            }
+
+
             ImageReader.OnImageAvailableListener readerListener = new ImageReader.OnImageAvailableListener() {
                 @Override
                 public void onImageAvailable(ImageReader reader) {
-                    Image image = null;
-                    try {
-                        image = reader.acquireLatestImage();
-                        ByteBuffer buffer = image.getPlanes()[0].getBuffer();
-                        byte[] bytes = new byte[buffer.capacity()];
-                        buffer.get(bytes);
-                        save(bytes);
-                    } catch (FileNotFoundException e) {
-                        e.printStackTrace();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    } finally {
-                        if (image != null) {
-                            image.close();
-                        }
+                    Image image = reader.acquireLatestImage();
+                    if (image != null) {
+                        //byte[] jpegData = ImageUtil.imageToByteArray(image);
+                        jpegData = ImageUtil.imageToByteArray(image);
+                        //ByteBuffer buffer = image.getPlanes()[0].getBuffer();
+                        //jpegData = new byte[buffer.capacity()];
                     }
                 }
 
-                private void save(byte[] bytes) throws IOException {
-                    OutputStream output = null;
-                    try {
-                        output = new FileOutputStream(file);
-                        output.write(bytes);
-                    } finally {
-                        if (null != output) {
-                            output.close();
-                        }
-                    }
-                }
             };
             reader.setOnImageAvailableListener(readerListener, mBackgroundHandler);
 
@@ -311,8 +345,8 @@ public class MainActivity_old extends ParentActivity /*implements TextureView.Su
                     super.onCaptureCompleted(session, request, result);
                     //app.makeToast("Saved2:" + filePath);
                     //new FileToServer(filePath);
-                    Log.d("mylog", "onCaptureCompleted");
-                    sendFileToServer(filePath);
+                    //Log.d("mylog", "onCaptureCompleted "+jpegData.length);
+                    sendFileToServer(jpegData);
                     createCameraPreview();
                 }
             };
@@ -342,7 +376,6 @@ public class MainActivity_old extends ParentActivity /*implements TextureView.Su
     }
 
 
-
     protected void createCameraPreview() {
         try {
             SurfaceTexture texture = textureView.getSurfaceTexture();
@@ -362,12 +395,16 @@ public class MainActivity_old extends ParentActivity /*implements TextureView.Su
                     zoomRect = new Rect(0, 0, 200, 200);
                 }
                 //zoomCropPreview = getZoomRect(zoomLevel, activeRect.width(), activeRect.height());
+                try {
+                    Log.d("mylog", zoomRect.right+" "+zoomRect.bottom);
+                }catch (Exception e){
+
+                }
                 captureRequestBuilder.set(CaptureRequest.SCALER_CROP_REGION, zoomRect);
                 try {
                     tvDetails.append(zoomRect.width()+" / "+zoomRect.height());
                 }catch (Exception e){}
             }
-
 
 
 
@@ -403,10 +440,15 @@ public class MainActivity_old extends ParentActivity /*implements TextureView.Su
             float maxZoom = (characteristics.get(CameraCharacteristics.SCALER_AVAILABLE_MAX_DIGITAL_ZOOM));
             // Add permission for camera and let user grant the permission
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(MainActivity_old.this, new String[]{Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CAMERA_PERMISSION);
+                ActivityCompat.requestPermissions(MainActivity_with_camera.this, new String[]{Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CAMERA_PERMISSION);
                 return;
             }
             manager.openCamera(cameraId, stateCallback, null);
+
+            /*Range<Integer> range2 = characteristics.get(CameraCharacteristics.SENSOR_INFO_SENSITIVITY_RANGE);
+            int max1 = range2.getUpper();//10000
+            int min1 = range2.getLower();//100
+            Log.d("mylog", max1+" "+min1);*/
 
             tvDetails.setText("camera id " + cameraId + "\n");
             tvDetails.append(imageDimension + "\n");
@@ -419,7 +461,7 @@ public class MainActivity_old extends ParentActivity /*implements TextureView.Su
     }
 
     protected void updatePreview() {
-        if (cameraDevice==null) {
+        if (cameraDevice == null) {
             return;
         }
         captureRequestBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
@@ -456,19 +498,19 @@ public class MainActivity_old extends ParentActivity /*implements TextureView.Su
     @Override
     protected void onResume() {
         super.onResume();
-        startBackgroundThread();
+        /*startBackgroundThread();
         if (textureView.isAvailable()) {
             openCamera();
         } else {
             textureView.setSurfaceTextureListener(textureListener);
-        }
+        }*/
 
     }
 
     @Override
     protected void onPause() {
         //closeCamera();
-        stopBackgroundThread();
+        //stopBackgroundThread();
         if (mTimer != null) {
             mTimer.cancel();
         }
@@ -507,6 +549,7 @@ public class MainActivity_old extends ParentActivity /*implements TextureView.Su
 
     private Rect getZoomRect(float zoomLevel) {
         try {
+            zoomLevel=zoomLevel*5;
             CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
             CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraDevice.getId());
             float maxZoom = (characteristics.get(CameraCharacteristics.SCALER_AVAILABLE_MAX_DIGITAL_ZOOM)) * 10;
@@ -531,34 +574,31 @@ public class MainActivity_old extends ParentActivity /*implements TextureView.Su
         }
     }
 
-    private void sendFileToServer(String filePath) {
+    private void sendFileToServer(byte[] bytes) {
         DataOutputStream dataOutputStream = null;
-        File file = new File(filePath);
+
         try {
-            if(socket==null || socket.isClosed()){
+            if (socket == null || socket.isClosed()) {
                 //socket = new Socket("176.107.187.129", 1502);
                 socket = new Socket();
                 socket.setKeepAlive(true);
                 socket.connect(new InetSocketAddress("176.107.187.129", 1500), 5000);
                 Log.d("mylog", "socket.connected");
+                isSocketInProgress = false;
             }
             /*DataInputStream in=new DataInputStream(new BufferedInputStream(socket.getInputStream()));
             String message=in.readUTF();
             Log.d("mylog", message);*/
 
+
+            isSocketInProgress = true;
             dataOutputStream = new DataOutputStream(socket.getOutputStream());
-            FileInputStream fileInputStream = new FileInputStream(file);
-
-            byte[] buffer = new byte[4096];
-
-            while (fileInputStream.read(buffer) > 0) {
-                dataOutputStream.write(buffer);
-            }
-            fileInputStream.close();
+            dataOutputStream.write(bytes);
             dataOutputStream.flush();
             dataOutputStream.writeUTF("EOF");
             dataOutputStream.flush();
-            Log.d("mylog", "send successs");
+            Log.d("mylog", "send success " + jpegData.length);
+            isSocketInProgress = false;
 
             //Get the return message from the server
             /*BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -571,13 +611,14 @@ public class MainActivity_old extends ParentActivity /*implements TextureView.Su
             //read the response
 
 
-        } catch (IOException e) {
+        } catch (Exception e) {
             //e.printStackTrace();
-            Log.e("mylog", e.toString());
+            Log.e("mylog", e.getMessage());
             if (socket != null) {
                 try {
                     socket.close();
-                    socket=null;
+                    socket = null;
+                    isSocketInProgress = false;
                 } catch (IOException e1) {
                     e1.printStackTrace();
                 }
@@ -602,7 +643,39 @@ public class MainActivity_old extends ParentActivity /*implements TextureView.Su
         }
     }
 
+    private boolean intArray(int[] intArray, int value) {
+        for (int i = 0; i < intArray.length; i++) {
+            if (intArray[i] == value) {
+                return true;
+            }
+        }
+        return false;
+    }
 
 
 
+
+    public void OnDisconectSocket(View view) {
+        isSocketInProgress = false;
+        if (socket != null) {
+            try {
+                socket.close();
+                socket = null;
+
+                Log.i("mylog", "socket=null");
+            } catch (Exception e1) {
+                Log.e("mylog", e1.getMessage());
+            }
+        }
+    }
+
+
+    public void OnChaneSettingsClick(View view) {
+        Log.d("mylog", "OnChaneSettingsClick");
+        app.pref.zoomLevel+=1;
+        Intent i = new Intent(this, Camera2Service.class);
+        i.setAction(ServiceParams.COMMAND_CHANGE_SETTINGS);
+        startService(i);
+
+    }
 }

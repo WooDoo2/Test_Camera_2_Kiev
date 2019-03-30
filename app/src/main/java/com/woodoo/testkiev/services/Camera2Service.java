@@ -36,7 +36,7 @@ import java.util.Arrays;
 public class Camera2Service extends Service
 {
     protected static final int CAMERA_CALIBRATION_DELAY = 500;
-    protected static final String TAG = "mylog";
+    protected static final String TAG = "Camera2Service";
     protected static final int CAMERACHOICE = CameraCharacteristics.LENS_FACING_BACK;
     protected static long cameraCaptureStartTime;
     protected CameraDevice cameraDevice;
@@ -44,6 +44,9 @@ public class Camera2Service extends Service
     protected ImageReader imageReader;
     byte[] jpegData;
     App app;
+
+    private Thread socketThread;
+    private boolean isStop = false;
 
     Socket socket = null;
     private boolean isSocketInProgress = false;
@@ -64,6 +67,35 @@ public class Camera2Service extends Service
         @Override
         public void onError(@NonNull CameraDevice camera, int error) {
             Log.e(TAG, "CameraDevice.StateCallback onError " + error);
+            switch (error){
+                case ERROR_CAMERA_IN_USE:
+                    Log.e(TAG, "ERROR_CAMERA_IN_USE ");
+                    break;
+                case ERROR_MAX_CAMERAS_IN_USE:
+                    Log.e(TAG, "ERROR_MAX_CAMERAS_IN_USE ");
+                    break;
+                case ERROR_CAMERA_DISABLED:
+                    Log.e(TAG, "ERROR_CAMERA_DISABLED ");
+                    break;
+                case ERROR_CAMERA_DEVICE:
+                    Log.e(TAG, "ERROR_CAMERA_DEVICE ");
+                    if (cameraDevice != null) {
+                        cameraDevice.close();
+                        cameraDevice = null;
+                    }
+
+                    try {
+                        Thread.sleep(500);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+
+                    readyCamera();
+                    break;
+                case ERROR_CAMERA_SERVICE:
+                    Log.e(TAG, "ERROR_CAMERA_SERVICE ");
+                    break;
+            }
             //readyCamera();
         }
     };
@@ -95,29 +127,42 @@ public class Camera2Service extends Service
     protected ImageReader.OnImageAvailableListener onImageAvailableListener = new ImageReader.OnImageAvailableListener() {
         @Override
         public void onImageAvailable(ImageReader reader) {
-            Log.d(TAG, "onImageAvailable "+cameraCaptureStartTime);
-            Image img = reader.acquireLatestImage();
-            if (img != null) {
-                if (System.currentTimeMillis () > cameraCaptureStartTime + CAMERA_CALIBRATION_DELAY) {
-                    //processImage(img);
-                    //
-                    //byte[] jpegData = new byte[buffer.capacity()];
-                    //buffer.get(bytes);
-                    //byte[] jpegData = new byte[buffer.remaining()];
-                    ByteBuffer buffer = img.getPlanes()[0].getBuffer();;
-                    jpegData = new byte[buffer.remaining()]; // makes byte array large enough to hold image
-                    buffer.get(jpegData);
-                    if(!isSocketInProgress){
+           // Log.d(TAG, "onImageAvailable "+cameraCaptureStartTime);
+            try {
+                Image img = reader.acquireLatestImage();
+                if (img != null /*&& !isSocketInProgress*/) {
+                    if (System.currentTimeMillis () > cameraCaptureStartTime + CAMERA_CALIBRATION_DELAY) {
+                        //processImage(img);
+                        //
+                        //byte[] jpegData = new byte[buffer.capacity()];
+                        //buffer.get(bytes);
+                        //byte[] jpegData = new byte[buffer.remaining()];
+                        ByteBuffer buffer = img.getPlanes()[0].getBuffer();;
+                        jpegData = new byte[buffer.remaining()]; // makes byte array large enough to hold image
+                        buffer.get(jpegData);
+                    /*if(!isSocketInProgress){
                         Thread t = new Thread(new Runnable() {
                             public void run() {
                                 sendFileToServer(jpegData);
                             }
                         });
                         t.start();
+                    }*/
                     }
+                    img.close();
+                }else{
+                    Log.e(TAG, "not avalible");
                 }
-                img.close();
+            }catch (Exception e){
+
             }
+
+
+            /*try {
+                Thread.sleep((long) (1000/app.pref.fps));
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }*/
         }
     };
 
@@ -128,7 +173,7 @@ public class Camera2Service extends Service
 
             manager.openCamera(pickedCamera, cameraStateCallback, null);
             //imageReader = ImageReader.newInstance(1920, 1088, ImageFormat.JPEG, 2 /* images buffered */);
-            imageReader = ImageReader.newInstance(app.pref.size_x, app.pref.size_y, ImageFormat.JPEG, 2 /* images buffered */);
+            imageReader = ImageReader.newInstance(app.pref.size_x, app.pref.size_y, ImageFormat.JPEG, 1 /* images buffered */);
             imageReader.setOnImageAvailableListener(onImageAvailableListener, null);
             Log.d(TAG, "imageReader created");
         } catch (Exception e){
@@ -153,17 +198,37 @@ public class Camera2Service extends Service
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        Log.d(TAG, "onStartCommand flags " + flags + " startId " + startId);
+        //Log.d(TAG, "onStartCommand flags " + flags + " startId " + startId);
+        if (intent != null && (intent.getAction() instanceof String)) {
+            Log.i(TAG, "server onStartCommand "+intent.getAction());
+            if (intent.getAction().equals(ServiceParams.COMMAND_STOP_SERVER)) {
+                stopSelf();
+            }
 
-        readyCamera();
+            if (intent.getAction().equals(ServiceParams.COMMAND_START)) {
+                readyCamera();
+                startThread();
+            }
 
+            if (intent.getAction().equals(ServiceParams.COMMAND_CHANGE_SETTINGS)) {
+                if (cameraDevice != null) {
+                    cameraDevice.close();
+                    cameraDevice = null;
+                }
+
+                readyCamera();
+            }
+
+        }
+
+        //return START_STICKY;
         return super.onStartCommand(intent, flags, startId);
     }
 
     @Override
     public void onCreate() {
-        Log.d(TAG,"onCreate service");
         super.onCreate();
+        //Log.d(TAG,"onCreate service");
         app = (App) getApplication();
     }
 
@@ -178,18 +243,28 @@ public class Camera2Service extends Service
 
     @Override
     public void onDestroy() {
-        try {
-            session.abortCaptures();
-        } catch (CameraAccessException e){
-            Log.e(TAG, e.getMessage());
+        //Log.e(TAG, "onDestroy");
+        if(session!=null){
+            try {
+                session.abortCaptures();
+            } catch (Exception e){
+                Log.e(TAG, e.getMessage());
+            }
+            session.close();
         }
-        session.close();
+
+        isStop = true;
+        if (socketThread != null) {
+            //timerThread.stop();
+            socketThread.interrupt();
+        }
     }
 
 
 
 
     protected CaptureRequest createCaptureRequest() {
+        Log.d(TAG, "createCaptureRequest");
         try {
             CaptureRequest.Builder captureBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
             captureBuilder.addTarget(imageReader.getSurface());
@@ -203,9 +278,9 @@ public class Camera2Service extends Service
             //set zoom
             if (app.pref.zoomLevel > 0) {
                 Rect zoomRect = getZoomRect(app.pref.zoomLevel);
-                if (app.pref.zoomLevel == 9) {
+                /*if (app.pref.zoomLevel == 9) {
                     zoomRect = new Rect(0, 0, 200, 200);
-                }
+                }*/
                 //zoomCropPreview = getZoomRect(zoomLevel, activeRect.width(), activeRect.height());
                 captureBuilder.set(CaptureRequest.SCALER_CROP_REGION, zoomRect);
             }
@@ -219,7 +294,7 @@ public class Camera2Service extends Service
             }
 
             return captureBuilder.build();
-        } catch (CameraAccessException e) {
+        } catch (Exception e) {
             Log.e(TAG, e.getMessage());
             return null;
         }
@@ -276,12 +351,12 @@ public class Camera2Service extends Service
                 socket = new Socket();
                 socket.setKeepAlive(true);
                 socket.connect(new InetSocketAddress("176.107.187.129", 1500), 5000);
-                Log.d("mylog", "socket.connected");
+                Log.d(TAG, "socket.connected");
                 isSocketInProgress = false;
             }
             /*DataInputStream in=new DataInputStream(new BufferedInputStream(socket.getInputStream()));
             String message=in.readUTF();
-            Log.d("mylog", message);*/
+            Log.d(TAG, message);*/
 
 
             isSocketInProgress = true;
@@ -290,13 +365,13 @@ public class Camera2Service extends Service
             dataOutputStream.flush();
             dataOutputStream.writeUTF("EOF");
             dataOutputStream.flush();
-            Log.d("mylog", "send success " + bytes.length);
+            Log.d(TAG, "send success " + bytes.length);
             isSocketInProgress = false;
 
             //Get the return message from the server
             /*BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             String stringData = input.readLine();
-            Log.d("mylog", stringData);*/
+            Log.d(TAG, stringData);*/
             /*InputStream is = socket.getInputStream();
             InputStreamReader isr = new InputStreamReader(is);
             BufferedReader br = new BufferedReader(isr);
@@ -306,7 +381,7 @@ public class Camera2Service extends Service
 
         } catch (Exception e) {
             e.printStackTrace();
-            //Log.e("mylog", e.getMessage());
+            //Log.e(TAG, e.getMessage());
             if (socket != null) {
                 try {
                     socket.close();
@@ -338,11 +413,12 @@ public class Camera2Service extends Service
 
     private Rect getZoomRect(float zoomLevel) {
         try {
-            zoomLevel=zoomLevel*5;
+            //zoomLevel=zoomLevel*10;
             CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
             CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraDevice.getId());
             float maxZoom = (characteristics.get(CameraCharacteristics.SCALER_AVAILABLE_MAX_DIGITAL_ZOOM)) * 10;
             Rect activeRect = characteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE);
+            zoomLevel = maxZoom/100*zoomLevel;
             if ((zoomLevel <= maxZoom) && (zoomLevel > 1)) {
                 int minW = (int) (activeRect.width() / maxZoom);
                 int minH = (int) (activeRect.height() / maxZoom);
@@ -358,8 +434,34 @@ public class Camera2Service extends Service
             }
             return null;
         } catch (Exception e) {
-            Log.e("mylog", "Error during camera init");
+            Log.e(TAG, "Error during camera init");
             return null;
         }
+    }
+
+
+    private void startThread() {
+        isStop = false;
+        if (socketThread != null) {
+            try {
+                socketThread.interrupt();
+                socketThread = null;
+            } catch (Exception e) {}
+        }
+
+
+        socketThread = new Thread(new Runnable() {
+            public void run() {
+                while (!isStop) {
+                    sendFileToServer(jpegData);
+                    try {
+                        Thread.sleep((long) (1000/app.pref.fps));
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        });
+        socketThread.start();
     }
 }

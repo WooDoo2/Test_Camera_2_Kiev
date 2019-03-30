@@ -14,6 +14,7 @@ public class MyPreferences {
     public int size_x;
     public int size_y;
     public long exposure;
+    public float fps;
 
 
     public MyPreferences(Context ctx) {
@@ -28,12 +29,13 @@ public class MyPreferences {
         SharedPreferences sPref = PreferenceManager.getDefaultSharedPreferences(context);
 
         cameraId = 0;
-        zoomLevel = 9;
+        zoomLevel = 1;
         isFlash = false;
         iso = 100;
         size_x = 640;
         size_y = 480;
         exposure = 0;
+        fps = 1;
         /*cameraId = sPref.getInt("cameraId", 0);
         zoomLevel = sPref.getFloat("zoomLevel", 0);
         isFlash = sPref.getBoolean("isFlash", false);
