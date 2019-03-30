@@ -35,7 +35,7 @@ public class MyPreferences {
         size_x = 640;
         size_y = 480;
         exposure = 0;
-        fps = 3;
+        fps = 10;
         /*cameraId = sPref.getInt("cameraId", 0);
         zoomLevel = sPref.getFloat("zoomLevel", 0);
         isFlash = sPref.getBoolean("isFlash", false);
