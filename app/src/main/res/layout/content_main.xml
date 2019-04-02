@@ -29,6 +29,15 @@
         android:text="Bundle settings 2" />
 
     <Button
+        android:id="@+id/btnStartPref"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:onClick="OnStartPref"
+        android:text="btnStartPref" />
+
+
+    <Button
         android:id="@+id/btnDisconectSocket"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

@@ -69,13 +69,14 @@ public class ServiceParams extends Service {
         timerThread = new Thread(new Runnable() {
             public void run() {
                 while (!isStop) {
-                    getCommandFromSocket();
-
                     try {
-                        Thread.sleep(1000);
+                        Thread.sleep(2000);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
+                    getCommandFromSocket();
+
+
 
                 }
             }
@@ -151,8 +152,10 @@ public class ServiceParams extends Service {
                 anons_action(ACTION_NEW_SETTINGS);
 
                 Intent i = new Intent(this, Camera2Service.class);
-                i.setAction(ServiceParams.COMMAND_STOP_SERVER);
+                i.setAction(ServiceParams.COMMAND_CHANGE_SETTINGS);
                 startService(i);
+
+                //stopSelf();
             }
 
         } catch (Exception e) {

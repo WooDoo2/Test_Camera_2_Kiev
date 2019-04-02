@@ -71,7 +71,7 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
         initMain();
 
         if(checkPermissions()){
-            serviceParamsStart();
+            //serviceParamsStart();
             cameraServiceStart();
         }
     }
@@ -318,5 +318,9 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
         Intent i2 = new Intent(this, Camera2Service.class);
         i2.setAction(ServiceParams.COMMAND_CHANGE_SETTINGS);
         startService(i2);
+    }
+
+    public void OnStartPref(View view) {
+        serviceParamsStart();
     }
 }
