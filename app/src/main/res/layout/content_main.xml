@@ -12,9 +12,9 @@
         android:id="@+id/btnChangeSettings1"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
         android:layout_alignParentTop="true"
-        android:layout_alignParentRight="true"
-        android:layout_marginTop="60dp"
+        android:layout_marginTop="51dp"
         android:onClick="OnChaneSettingsClick"
         android:text="Bundle settings 1" />
 
@@ -24,7 +24,6 @@
         android:layout_height="wrap_content"
         android:layout_alignParentLeft="true"
         android:layout_alignParentTop="true"
-        android:layout_marginTop="60dp"
         android:onClick="OnChaneSettingsClick"
         android:text="Bundle settings 2" />
 
@@ -43,8 +42,8 @@
         android:layout_height="wrap_content"
         android:layout_alignParentRight="true"
         android:layout_alignParentBottom="true"
-        android:layout_marginRight="0dp"
-        android:layout_marginBottom="100dp"
+        android:layout_marginRight="8dp"
+        android:layout_marginBottom="59dp"
         android:onClick="OnDisconectSocket"
         android:text="Disconect Socket" />
 
@@ -54,6 +53,8 @@
         android:layout_height="wrap_content"
         android:layout_alignParentRight="true"
         android:layout_alignParentBottom="true"
+        android:layout_marginRight="11dp"
+        android:layout_marginBottom="4dp"
         android:text="shoot and send" />
 
     <Button
@@ -70,8 +71,9 @@
         android:layout_height="wrap_content"
         android:layout_alignParentTop="true"
         android:layout_alignParentRight="true"
-        android:layout_marginTop="273dp"
-        android:layout_marginRight="5dp"
+        android:layout_marginTop="15dp"
+        android:layout_marginRight="6dp"
+        android:gravity="right"
         android:text="tvDetails"
         android:textColor="#fff"
         android:textSize="20sp" />

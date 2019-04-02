@@ -113,7 +113,7 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
             *//*case ACTION_NEW_SETTINGS: break;*//*
 
         }*/
-
+        updateTvDetails();
     }
 
 
@@ -129,6 +129,7 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
 
         ((Switch) findViewById(R.id.switchFlash)).setChecked(app.pref.isFlash);
         tvDetails = findViewById(R.id.tvDetails);
+        updateTvDetails();
 
 
         Button btnTimer = findViewById(R.id.btnTimer);
@@ -316,14 +317,23 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
         startService(i);
 */
 
-        app.makeToast("zoomLevel="+app.pref.zoomLevel+
-                "   size_x="+app.pref.size_x+
-                "   size_y="+app.pref.size_y+
-                "   fps="+app.pref.fps);
+
 
         Intent i2 = new Intent(this, Camera2Service.class);
         i2.setAction(ServiceParams.COMMAND_CHANGE_SETTINGS);
         startService(i2);
+
+        updateTvDetails();
+    }
+
+    private void updateTvDetails() {
+        tvDetails.setText("zoomLevel="+app.pref.zoomLevel+"\n");
+        tvDetails.append("size_x="+app.pref.size_x+"\n");
+        tvDetails.append("size_y="+app.pref.size_y+"\n");
+        tvDetails.append("fps="+app.pref.fps+"\n");
+        //tvDetails.append("iso="+app.pref.iso+"\n");
+        //tvDetails.append("exposure="+app.pref.exposure+"\n");
+
     }
 
     public void OnStartPref(View view) {

@@ -33,6 +33,7 @@ import android.util.Log;
 import com.woodoo.testkiev.App;
 import com.woodoo.testkiev.MainActivity;
 import com.woodoo.testkiev.R;
+import com.woodoo.testkiev.utils.ImageUtil;
 
 import java.io.DataOutputStream;
 import java.io.File;
@@ -175,10 +176,15 @@ public class Camera2Service extends Service
                         //byte[] jpegData = new byte[buffer.capacity()];
                         //buffer.get(bytes);
                         //byte[] jpegData = new byte[buffer.remaining()];
-                        ByteBuffer buffer = img.getPlanes()[0].getBuffer();;
+
+                        /*ByteBuffer buffer = img.getPlanes()[0].getBuffer();;
                         jpegData = new byte[buffer.remaining()]; // makes byte array large enough to hold image
-                        buffer.get(jpegData);
-                    /*if(!isSocketInProgress){
+                        buffer.get(jpegData);*/
+
+                        jpegData = ImageUtil.imageToByteArray(img);
+
+
+                        /*if(!isSocketInProgress){
                         Thread t = new Thread(new Runnable() {
                             public void run() {
                                 sendFileToServer(jpegData);
@@ -211,8 +217,8 @@ public class Camera2Service extends Service
             String pickedCamera = getCamera(manager);
             manager.openCamera(pickedCamera, cameraStateCallback, null);
             //imageReader = ImageReader.newInstance(1920, 1088, ImageFormat.JPEG, 2 /* images buffered */);
-            imageReader = ImageReader.newInstance(app.pref.size_x, app.pref.size_y, ImageFormat.JPEG, 5 );
-            //imageReader = ImageReader.newInstance(app.pref.size_x, app.pref.size_y, ImageFormat.YUV_420_888, 1 );
+            //imageReader = ImageReader.newInstance(app.pref.size_x, app.pref.size_y, ImageFormat.JPEG, 5 );
+            imageReader = ImageReader.newInstance(app.pref.size_x, app.pref.size_y, ImageFormat.YUV_420_888, 1 );
             //imageReader = ImageReader.newInstance(app.pref.size_x, app.pref.size_y, PixelFormat.RGBA_8888, 1);
             imageReader.setOnImageAvailableListener(onImageAvailableListener, null);
             //Log.d(TAG, "imageReader created");
