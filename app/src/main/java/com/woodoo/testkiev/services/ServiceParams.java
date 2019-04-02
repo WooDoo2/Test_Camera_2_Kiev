@@ -121,6 +121,7 @@ public class ServiceParams extends Service {
             Log.d(TAG, "socket.connected");
             BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             String newString = input.readLine();
+            input.close();
             //String newString  = "{\"zoom\": 9, \"iso\": 100, \"exposure\": 0.1, \"size_x\": 640, \"size_y\": 480}";
             if (newString != null) {
                 Log.d(TAG, newString);

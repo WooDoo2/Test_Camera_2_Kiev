@@ -38,11 +38,14 @@ import com.woodoo.testkiev.MainActivity;
 import com.woodoo.testkiev.R;
 import com.woodoo.testkiev.utils.ImageUtil;
 
+import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.ByteBuffer;
@@ -447,13 +450,24 @@ public class Camera2Service extends Service {
 
 
             isSocketInProgress = true;
+
             dataOutputStream = new DataOutputStream(socket.getOutputStream());
             dataOutputStream.write(bytes);
             dataOutputStream.flush();
             dataOutputStream.writeUTF("EOF");
             dataOutputStream.flush();
             Log.d(TAG, "send success " + bytes.length);
+            //dataOutputStream.close();
+
+            //BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            //String message = input.readLine();
+            /*InputStream is = socket.getInputStream();
+            InputStreamReader isr = new InputStreamReader(is);
+            BufferedReader br = new BufferedReader(isr);
+            String message = br.readLine();*/
+            //Log.d(TAG, "read buffer " + message);
             isSocketInProgress = false;
+
 
             //Get the return message from the server
             /*BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -542,8 +556,8 @@ public class Camera2Service extends Service {
             public void run() {
                 while (!isStop) {
                     if(jpegData!=null && jpegData.length>0){
-                        //sendFileToServer(jpegData);
-                        sendFileToServer(jpegData.clone());
+                        sendFileToServer(jpegData);
+                        //sendFileToServer(jpegData.clone());
                     }
                     try {
                         Thread.sleep((long) (1000 / app.pref.fps));
