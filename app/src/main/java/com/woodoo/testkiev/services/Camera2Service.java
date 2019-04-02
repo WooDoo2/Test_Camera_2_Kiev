@@ -1,9 +1,15 @@
 package com.woodoo.testkiev.services;
 
 import android.Manifest;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.graphics.ImageFormat;
 import android.graphics.Rect;
 import android.hardware.camera2.CameraAccessException;
@@ -15,13 +21,17 @@ import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
 import android.media.Image;
 import android.media.ImageReader;
+import android.os.Build;
 import android.os.Environment;
 import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
 import com.woodoo.testkiev.App;
+import com.woodoo.testkiev.MainActivity;
+import com.woodoo.testkiev.R;
 
 import java.io.DataOutputStream;
 import java.io.File;
@@ -50,6 +60,8 @@ public class Camera2Service extends Service
 
     Socket socket = null;
     private boolean isSocketInProgress = false;
+    int NID = 1;
+    public static final String SECONDARY_CHANNEL = "channel1";
 
     protected CameraDevice.StateCallback cameraStateCallback = new CameraDevice.StateCallback() {
         @Override
@@ -62,6 +74,7 @@ public class Camera2Service extends Service
         @Override
         public void onDisconnected(@NonNull CameraDevice camera) {
             Log.w(TAG, "CameraDevice.StateCallback onDisconnected");
+            //cameraDevice=null;
         }
 
         @Override
@@ -97,22 +110,22 @@ public class Camera2Service extends Service
             cameraDevice = null;
         }
 
-        if(session!=null){
+        /*if(session!=null){
             try {
                 session.abortCaptures();
             } catch (Exception e){
                 Log.e(TAG, "restartCamera " + e.getMessage());
             }
             session.close();
-        }
+        }*/
 
 
 
-        /*try {
+        try {
             Thread.sleep(1000);
         } catch (InterruptedException e) {
             e.printStackTrace();
-        }*/
+        }
 
         readyCamera();
     }
@@ -121,6 +134,7 @@ public class Camera2Service extends Service
 
         @Override
         public void onReady(CameraCaptureSession session) {
+
             Camera2Service.this.session = session;
             try {
                 session.setRepeatingRequest(createCaptureRequest(), null, null);
@@ -143,7 +157,7 @@ public class Camera2Service extends Service
 
         @Override
         public void onClosed(@NonNull CameraCaptureSession session) {
-            Log.e(TAG, "onClosed");
+
         }
     };
 
@@ -230,6 +244,7 @@ public class Camera2Service extends Service
             if (intent.getAction().equals(ServiceParams.COMMAND_START)) {
                 readyCamera();
                 startThread();
+                //showNotificationsNew();
             }
 
             if (intent.getAction().equals(ServiceParams.COMMAND_CHANGE_SETTINGS)) {
@@ -244,7 +259,8 @@ public class Camera2Service extends Service
         }
 
         //return START_STICKY;
-        return super.onStartCommand(intent, flags, startId);
+        //return super.onStartCommand(intent, flags, startId);
+        return Service.START_NOT_STICKY;
     }
 
     @Override
@@ -280,6 +296,9 @@ public class Camera2Service extends Service
             //timerThread.stop();
             socketThread.interrupt();
         }
+
+        NotificationManager notificationmanager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        notificationmanager.cancel(NID);
     }
 
 
@@ -292,7 +311,7 @@ public class Camera2Service extends Service
             captureBuilder.addTarget(imageReader.getSurface());
 
             captureBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
-            captureBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.INFO_SUPPORTED_HARDWARE_LEVEL_FULL);
+            //captureBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.INFO_SUPPORTED_HARDWARE_LEVEL_FULL);
 
             //set iso
             captureBuilder.set(CaptureRequest.SENSOR_SENSITIVITY, app.pref.iso);
@@ -486,5 +505,35 @@ public class Camera2Service extends Service
             }
         });
         socketThread.start();
+    }
+
+
+    private void showNotificationsNew() {
+        NotificationManager notificationmanager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel chan2 = new NotificationChannel(SECONDARY_CHANNEL, "noti_channel_second", NotificationManager.IMPORTANCE_HIGH);
+            chan2.setLightColor(Color.BLUE);
+            chan2.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+            notificationmanager.createNotificationChannel(chan2);
+        }
+
+        Intent resultIntent = new Intent(this, MainActivity.class);
+        resultIntent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+        PendingIntent pIntent = PendingIntent.getActivity(this, 0, resultIntent, 0);
+
+        Notification noti = new NotificationCompat.Builder(this, SECONDARY_CHANNEL)
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .setLargeIcon(BitmapFactory.decodeResource(this.getResources(), R.mipmap.ic_launcher))
+                .setContentTitle("camera work")
+                .setContentText("camera work long")
+                .setAutoCancel(true)
+                .setSound(null)
+                //.setWhen(when)
+                .setContentIntent(pIntent)
+                .build();
+        noti.flags = Notification.FLAG_NO_CLEAR;
+        //notificationmanager.notify(NID, noti);
+        startForeground(NID, noti);
+
     }
 }
