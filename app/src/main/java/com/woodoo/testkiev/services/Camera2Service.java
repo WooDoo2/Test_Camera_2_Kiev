@@ -1,6 +1,7 @@
 package com.woodoo.testkiev.services;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -22,9 +23,11 @@ import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
 import android.media.Image;
 import android.media.ImageReader;
+import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Environment;
 import android.os.IBinder;
+import android.os.PowerManager;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.NotificationCompat;
@@ -45,8 +48,7 @@ import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-public class Camera2Service extends Service
-{
+public class Camera2Service extends Service {
     protected static final int CAMERA_CALIBRATION_DELAY = 500;
     protected static final String TAG = "Camera2Service";
     protected static final int CAMERACHOICE = CameraCharacteristics.LENS_FACING_BACK;
@@ -65,6 +67,9 @@ public class Camera2Service extends Service
     int NID = 1;
     public static final String SECONDARY_CHANNEL = "channel1";
 
+    private PowerManager.WakeLock wl;
+    private WifiManager.WifiLock wfl;
+
     protected CameraDevice.StateCallback cameraStateCallback = new CameraDevice.StateCallback() {
         @Override
         public void onOpened(@NonNull CameraDevice camera) {
@@ -82,7 +87,7 @@ public class Camera2Service extends Service
         @Override
         public void onError(@NonNull CameraDevice camera, int error) {
             Log.e(TAG, "CameraDevice.StateCallback onError " + error);
-            switch (error){
+            switch (error) {
                 case ERROR_CAMERA_IN_USE:
                     Log.e(TAG, "ERROR_CAMERA_IN_USE ");
                     break;
@@ -91,10 +96,10 @@ public class Camera2Service extends Service
                     break;
                 case ERROR_CAMERA_DISABLED:
                     Log.e(TAG, "ERROR_CAMERA_DISABLED ");
+                    restartCamera();
                     break;
                 case ERROR_CAMERA_DEVICE:
                     Log.e(TAG, "ERROR_CAMERA_DEVICE ");
-
                     //The camera device needs to be re-opened to be used again.
                     restartCamera();
                     break;
@@ -122,7 +127,6 @@ public class Camera2Service extends Service
         }*/
 
 
-
         try {
             Thread.sleep(1000);
         } catch (InterruptedException e) {
@@ -140,7 +144,7 @@ public class Camera2Service extends Service
             Camera2Service.this.session = session;
             try {
                 session.setRepeatingRequest(createCaptureRequest(), null, null);
-                cameraCaptureStartTime = System.currentTimeMillis ();
+                cameraCaptureStartTime = System.currentTimeMillis();
             } catch (Exception e) {
                 Log.e(TAG, e.getMessage());
                 restartCamera();
@@ -166,11 +170,11 @@ public class Camera2Service extends Service
     protected ImageReader.OnImageAvailableListener onImageAvailableListener = new ImageReader.OnImageAvailableListener() {
         @Override
         public void onImageAvailable(ImageReader reader) {
-           // Log.d(TAG, "onImageAvailable "+cameraCaptureStartTime);
+            // Log.d(TAG, "onImageAvailable "+cameraCaptureStartTime);
             try {
                 Image img = reader.acquireLatestImage();
                 if (img != null /*&& !isSocketInProgress*/) {
-                    if (System.currentTimeMillis () > cameraCaptureStartTime + CAMERA_CALIBRATION_DELAY) {
+                    if (System.currentTimeMillis() > cameraCaptureStartTime + CAMERA_CALIBRATION_DELAY) {
                         //processImage(img);
                         //
                         //byte[] jpegData = new byte[buffer.capacity()];
@@ -181,6 +185,8 @@ public class Camera2Service extends Service
                         jpegData = new byte[buffer.remaining()]; // makes byte array large enough to hold image
                         buffer.get(jpegData);*/
 
+                        //jpegData = null;
+                        //jpegData = new byte[0];
                         jpegData = ImageUtil.imageToByteArray(img);
 
 
@@ -194,11 +200,11 @@ public class Camera2Service extends Service
                     }*/
                     }
 
-                }else{
+                } else {
                     Log.e(TAG, "not avalible");
                 }
                 img.close();
-            }catch (Exception e){
+            } catch (Exception e) {
 
             }
 
@@ -218,16 +224,16 @@ public class Camera2Service extends Service
             manager.openCamera(pickedCamera, cameraStateCallback, null);
             //imageReader = ImageReader.newInstance(1920, 1088, ImageFormat.JPEG, 2 /* images buffered */);
             //imageReader = ImageReader.newInstance(app.pref.size_x, app.pref.size_y, ImageFormat.JPEG, 5 );
-            imageReader = ImageReader.newInstance(app.pref.size_x, app.pref.size_y, ImageFormat.YUV_420_888, 1 );
+            imageReader = ImageReader.newInstance(app.pref.size_x, app.pref.size_y, ImageFormat.YUV_420_888, 2);
             //imageReader = ImageReader.newInstance(app.pref.size_x, app.pref.size_y, PixelFormat.RGBA_8888, 1);
             imageReader.setOnImageAvailableListener(onImageAvailableListener, null);
             //Log.d(TAG, "imageReader created");
-        } catch (Exception e){
+        } catch (Exception e) {
             Log.e(TAG, e.getMessage());
         }
     }
 
-    public String getCamera(CameraManager manager){
+    public String getCamera(CameraManager manager) {
         try {
             for (String cameraId : manager.getCameraIdList()) {
                 CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
@@ -236,7 +242,7 @@ public class Camera2Service extends Service
                     return cameraId;
                 }
             }
-        } catch (CameraAccessException e){
+        } catch (CameraAccessException e) {
             e.printStackTrace();
         }
         return null;
@@ -246,7 +252,7 @@ public class Camera2Service extends Service
     public int onStartCommand(Intent intent, int flags, int startId) {
         //Log.d(TAG, "onStartCommand flags " + flags + " startId " + startId);
         if (intent != null && (intent.getAction() instanceof String)) {
-            Log.i(TAG, "server onStartCommand "+intent.getAction());
+            Log.i(TAG, "server onStartCommand " + intent.getAction());
             if (intent.getAction().equals(ServiceParams.COMMAND_STOP_SERVER)) {
                 stopSelf();
             }
@@ -274,18 +280,34 @@ public class Camera2Service extends Service
         //return Service.START_NOT_STICKY;
     }
 
+    @SuppressLint("InvalidWakeLockTag")
     @Override
     public void onCreate() {
         super.onCreate();
         //Log.d(TAG,"onCreate service");
         app = (App) getApplication();
+
+        try {
+            PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+            wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "sync_all_cpu");
+            wl.acquire();
+        } catch (Exception e){}
+
+
+        try{
+            WifiManager wm = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+            wfl = wm.createWifiLock(WifiManager.WIFI_MODE_FULL, "sync_all_wifi");
+            wfl.acquire();
+        }catch (Exception e){
+
+        }
+
     }
 
-    public void actOnReadyCameraDevice()
-    {
+    public void actOnReadyCameraDevice() {
         try {
             cameraDevice.createCaptureSession(Arrays.asList(imageReader.getSurface()), sessionStateCallback, null);
-        } catch (CameraAccessException e){
+        } catch (CameraAccessException e) {
             Log.e(TAG, e.getMessage());
         }
     }
@@ -293,10 +315,15 @@ public class Camera2Service extends Service
     @Override
     public void onDestroy() {
         //Log.e(TAG, "onDestroy");
-        if(session!=null){
+        if (cameraDevice != null) {
+            cameraDevice.close();
+            cameraDevice = null;
+        }
+
+        if (session != null) {
             try {
                 session.abortCaptures();
-            } catch (Exception e){
+            } catch (Exception e) {
                 Log.e(TAG, e.getMessage());
             }
             session.close();
@@ -310,9 +337,16 @@ public class Camera2Service extends Service
 
         NotificationManager notificationmanager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         notificationmanager.cancel(NID);
+
+        try {
+            wl.release();
+            wfl.release();
+        }catch (Exception e){
+
+        }
+
+
     }
-
-
 
 
     protected CaptureRequest createCaptureRequest() {
@@ -340,7 +374,7 @@ public class Camera2Service extends Service
 
             //set exposure
             //or by just disabling auto-exposure, leaving auto-focus and auto-white-balance running:
-            if(app.pref.exposure>0){
+            if (app.pref.exposure > 0) {
                 captureBuilder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_MODE_OFF);
                 //captureRequestBuilder.set(CaptureRequest.SENSOR_EXPOSURE_TIME, 500000000L);//0.5s
                 captureBuilder.set(CaptureRequest.SENSOR_EXPOSURE_TIME, app.pref.exposure);
@@ -359,7 +393,7 @@ public class Camera2Service extends Service
     }
 
 
-    private void processImage(Image image){
+    private void processImage(Image image) {
         //Process image data
         ByteBuffer buffer;
         byte[] bytes;
@@ -368,7 +402,7 @@ public class Camera2Service extends Service
         File file = new File(Environment.getExternalStorageDirectory() + "/image.jpg");
         FileOutputStream output = null;
 
-        if(image.getFormat() == ImageFormat.JPEG) {
+        if (image.getFormat() == ImageFormat.JPEG) {
             buffer = image.getPlanes()[0].getBuffer();
             bytes = new byte[buffer.remaining()]; // makes byte array large enough to hold image
             buffer.get(bytes); // copies image from buffer to byte array
@@ -418,7 +452,7 @@ public class Camera2Service extends Service
             dataOutputStream.flush();
             dataOutputStream.writeUTF("EOF");
             dataOutputStream.flush();
-            //Log.d(TAG, "send success " + bytes.length);
+            Log.d(TAG, "send success " + bytes.length);
             isSocketInProgress = false;
 
             //Get the return message from the server
@@ -471,7 +505,7 @@ public class Camera2Service extends Service
             CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraDevice.getId());
             float maxZoom = (characteristics.get(CameraCharacteristics.SCALER_AVAILABLE_MAX_DIGITAL_ZOOM)) * 10;
             Rect activeRect = characteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE);
-            zoomLevel = maxZoom/100*zoomLevel;
+            zoomLevel = maxZoom / 100 * zoomLevel;
             if ((zoomLevel <= maxZoom) && (zoomLevel > 1)) {
                 int minW = (int) (activeRect.width() / maxZoom);
                 int minH = (int) (activeRect.height() / maxZoom);
@@ -499,16 +533,20 @@ public class Camera2Service extends Service
             try {
                 socketThread.interrupt();
                 socketThread = null;
-            } catch (Exception e) {}
+            } catch (Exception e) {
+            }
         }
 
 
         socketThread = new Thread(new Runnable() {
             public void run() {
                 while (!isStop) {
-                    sendFileToServer(jpegData);
+                    if(jpegData!=null && jpegData.length>0){
+                        //sendFileToServer(jpegData);
+                        sendFileToServer(jpegData.clone());
+                    }
                     try {
-                        Thread.sleep((long) (1000/app.pref.fps));
+                        Thread.sleep((long) (1000 / app.pref.fps));
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }

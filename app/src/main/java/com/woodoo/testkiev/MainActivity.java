@@ -11,6 +11,7 @@ import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.widget.Toolbar;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.SeekBar;
 import android.widget.Switch;
@@ -32,6 +33,7 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.activity_main);
         initMain();
 
@@ -39,6 +41,8 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
             serviceParamsStart();
             cameraServiceStart();
         }
+
+
     }
 
     private boolean checkPermissions() {
@@ -266,7 +270,7 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
                 app.pref.exposure = 500000000L;
                 app.pref.size_x = 300;
                 app.pref.size_y = 300;
-                app.pref.fps = 10;
+                app.pref.fps = 15;
                 break;
         }
         /*Intent i = new Intent(this, Camera2Service.class);
