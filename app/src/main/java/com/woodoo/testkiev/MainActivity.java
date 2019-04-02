@@ -71,7 +71,7 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
         initMain();
 
         if(checkPermissions()){
-            //serviceParamsStart();
+            serviceParamsStart();
             cameraServiceStart();
         }
     }

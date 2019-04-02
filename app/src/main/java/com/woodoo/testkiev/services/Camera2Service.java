@@ -79,18 +79,9 @@ public class Camera2Service extends Service
                     break;
                 case ERROR_CAMERA_DEVICE:
                     Log.e(TAG, "ERROR_CAMERA_DEVICE ");
-                    if (cameraDevice != null) {
-                        cameraDevice.close();
-                        cameraDevice = null;
-                    }
 
-                    try {
-                        Thread.sleep(500);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-
-                    readyCamera();
+                    //The camera device needs to be re-opened to be used again.
+                    restartCamera();
                     break;
                 case ERROR_CAMERA_SERVICE:
                     Log.e(TAG, "ERROR_CAMERA_SERVICE ");
@@ -100,6 +91,32 @@ public class Camera2Service extends Service
         }
     };
 
+    private void restartCamera() {
+        if (cameraDevice != null) {
+            cameraDevice.close();
+            cameraDevice = null;
+        }
+
+        if(session!=null){
+            try {
+                session.abortCaptures();
+            } catch (Exception e){
+                Log.e(TAG, "restartCamera " + e.getMessage());
+            }
+            session.close();
+        }
+
+
+
+        /*try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }*/
+
+        readyCamera();
+    }
+
     protected CameraCaptureSession.StateCallback sessionStateCallback = new CameraCaptureSession.StateCallback() {
 
         @Override
@@ -108,19 +125,25 @@ public class Camera2Service extends Service
             try {
                 session.setRepeatingRequest(createCaptureRequest(), null, null);
                 cameraCaptureStartTime = System.currentTimeMillis ();
-            } catch (CameraAccessException e) {
+            } catch (Exception e) {
                 Log.e(TAG, e.getMessage());
+                restartCamera();
             }
         }
 
 
         @Override
         public void onConfigured(CameraCaptureSession session) {
-
         }
 
         @Override
         public void onConfigureFailed(@NonNull CameraCaptureSession session) {
+
+        }
+
+        @Override
+        public void onClosed(@NonNull CameraCaptureSession session) {
+            Log.e(TAG, "onClosed");
         }
     };
 
@@ -170,12 +193,11 @@ public class Camera2Service extends Service
         CameraManager manager = (CameraManager) getSystemService(CAMERA_SERVICE);
         try {
             String pickedCamera = getCamera(manager);
-
             manager.openCamera(pickedCamera, cameraStateCallback, null);
             //imageReader = ImageReader.newInstance(1920, 1088, ImageFormat.JPEG, 2 /* images buffered */);
             imageReader = ImageReader.newInstance(app.pref.size_x, app.pref.size_y, ImageFormat.JPEG, 1 /* images buffered */);
             imageReader.setOnImageAvailableListener(onImageAvailableListener, null);
-            Log.d(TAG, "imageReader created");
+            //Log.d(TAG, "imageReader created");
         } catch (Exception e){
             Log.e(TAG, e.getMessage());
         }
@@ -264,7 +286,7 @@ public class Camera2Service extends Service
 
 
     protected CaptureRequest createCaptureRequest() {
-        Log.d(TAG, "createCaptureRequest");
+        //Log.d(TAG, "createCaptureRequest");
         try {
             CaptureRequest.Builder captureBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
             captureBuilder.addTarget(imageReader.getSurface());
@@ -366,7 +388,7 @@ public class Camera2Service extends Service
             dataOutputStream.flush();
             dataOutputStream.writeUTF("EOF");
             dataOutputStream.flush();
-            Log.d(TAG, "send success " + bytes.length);
+            //Log.d(TAG, "send success " + bytes.length);
             isSocketInProgress = false;
 
             //Get the return message from the server
