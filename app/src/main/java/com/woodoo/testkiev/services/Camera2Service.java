@@ -258,12 +258,13 @@ public class Camera2Service extends Service
             }
 
             if (intent.getAction().equals(ServiceParams.COMMAND_CHANGE_SETTINGS)) {
-                if (cameraDevice != null) {
+                /*if (cameraDevice != null) {
                     cameraDevice.close();
                     cameraDevice = null;
                 }
 
-                readyCamera();
+                readyCamera();*/
+                restartCamera();
             }
 
         }
