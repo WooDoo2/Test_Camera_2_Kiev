@@ -11,6 +11,7 @@ import android.content.Intent;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.ImageFormat;
+import android.graphics.PixelFormat;
 import android.graphics.Rect;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
@@ -186,10 +187,11 @@ public class Camera2Service extends Service
                         t.start();
                     }*/
                     }
-                    img.close();
+
                 }else{
                     Log.e(TAG, "not avalible");
                 }
+                img.close();
             }catch (Exception e){
 
             }
@@ -209,7 +211,9 @@ public class Camera2Service extends Service
             String pickedCamera = getCamera(manager);
             manager.openCamera(pickedCamera, cameraStateCallback, null);
             //imageReader = ImageReader.newInstance(1920, 1088, ImageFormat.JPEG, 2 /* images buffered */);
-            imageReader = ImageReader.newInstance(app.pref.size_x, app.pref.size_y, ImageFormat.JPEG, 1 /* images buffered */);
+            imageReader = ImageReader.newInstance(app.pref.size_x, app.pref.size_y, ImageFormat.JPEG, 5 );
+            //imageReader = ImageReader.newInstance(app.pref.size_x, app.pref.size_y, ImageFormat.YUV_420_888, 1 );
+            //imageReader = ImageReader.newInstance(app.pref.size_x, app.pref.size_y, PixelFormat.RGBA_8888, 1);
             imageReader.setOnImageAvailableListener(onImageAvailableListener, null);
             //Log.d(TAG, "imageReader created");
         } catch (Exception e){
@@ -258,9 +262,9 @@ public class Camera2Service extends Service
 
         }
 
-        //return START_STICKY;
+        return START_STICKY;
         //return super.onStartCommand(intent, flags, startId);
-        return Service.START_NOT_STICKY;
+        //return Service.START_NOT_STICKY;
     }
 
     @Override

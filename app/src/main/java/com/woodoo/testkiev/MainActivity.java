@@ -315,6 +315,12 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
         i.setAction(ServiceParams.COMMAND_STOP_SERVER);
         startService(i);
 */
+
+        app.makeToast("zoomLevel="+app.pref.zoomLevel+
+                "   size_x="+app.pref.size_x+
+                "   size_y="+app.pref.size_y+
+                "   fps="+app.pref.fps);
+
         Intent i2 = new Intent(this, Camera2Service.class);
         i2.setAction(ServiceParams.COMMAND_CHANGE_SETTINGS);
         startService(i2);
