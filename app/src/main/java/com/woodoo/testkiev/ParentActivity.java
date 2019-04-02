@@ -49,6 +49,21 @@ public abstract class ParentActivity extends AppCompatActivity {
         };
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        registerReceiver(myServiceReceiver, filterServicePlay);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        try {
+            unregisterReceiver(myServiceReceiver);
+        } catch (Exception e) {
+        }
+    }
+
     public abstract void anonceFromSevice(int action);
 
 
