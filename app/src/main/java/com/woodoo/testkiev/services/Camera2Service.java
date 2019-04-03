@@ -67,6 +67,7 @@ public class Camera2Service extends Service {
 
     Socket socket = null;
     private boolean isSocketInProgress = false;
+    private boolean isCreationImage = false;
     int NID = 1;
     public static final String SECONDARY_CHANNEL = "channel1";
 
@@ -176,7 +177,7 @@ public class Camera2Service extends Service {
             // Log.d(TAG, "onImageAvailable "+cameraCaptureStartTime);
             try {
                 Image img = reader.acquireLatestImage();
-                if (img != null /*&& !isSocketInProgress*/) {
+                if (img != null && !isSocketInProgress) {
                     if (System.currentTimeMillis() > cameraCaptureStartTime + CAMERA_CALIBRATION_DELAY) {
                         //byte[] jpegData = new byte[buffer.capacity()];
                         //buffer.get(bytes);
@@ -185,12 +186,13 @@ public class Camera2Service extends Service {
                         /*ByteBuffer buffer = img.getPlanes()[0].getBuffer();;
                         jpegData = new byte[buffer.remaining()]; // makes byte array large enough to hold image
                         buffer.get(jpegData);*/
-
-                        jpegData = ImageUtil.imageToByteArray(img);
+                        isCreationImage= true;
+                        byte[] bytes = ImageUtil.imageToByteArray(img);
                         if(app.pref.rotate>0){
-                            jpegData = ImageUtil.imageRotate(jpegData, app.pref.rotate);
+                            bytes = ImageUtil.imageRotate(bytes, app.pref.rotate);
                         }
-
+                        jpegData = bytes.clone();
+                        isCreationImage= false;
                         //jpegData = ImageUtil.rotateBytes(jpegData, img.getWidth(), img.getHeight(), 180);
                         //jpegData = ImageUtil.rotateYUV420Degree90(jpegData.clone(), img.getWidth(), img.getHeight());
 
@@ -220,7 +222,7 @@ public class Camera2Service extends Service {
             manager.openCamera(pickedCamera, cameraStateCallback, null);
             //imageReader = ImageReader.newInstance(1920, 1088, ImageFormat.JPEG, 2 /* images buffered */);
             //imageReader = ImageReader.newInstance(app.pref.size_x, app.pref.size_y, ImageFormat.JPEG, 5 );
-            imageReader = ImageReader.newInstance(app.pref.size_x, app.pref.size_y, ImageFormat.YUV_420_888, 2);
+            imageReader = ImageReader.newInstance(app.pref.size_x, app.pref.size_y, ImageFormat.YUV_420_888, 5);
             //imageReader = ImageReader.newInstance(app.pref.size_x, app.pref.size_y, PixelFormat.RGBA_8888, 1);
             imageReader.setOnImageAvailableListener(onImageAvailableListener, null);
             //Log.d(TAG, "imageReader created");
@@ -407,6 +409,25 @@ public class Camera2Service extends Service {
     }
 
 
+    private void saveFile(byte[] bytes) {
+        File file = new File(Environment.getExternalStorageDirectory() + "/image.jpg");
+        FileOutputStream output = null;
+        try {
+            output = new FileOutputStream(file);
+            output.write(bytes);    // write the byte array to file
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if (null != output) {
+                try {
+                    output.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
     private void processImage(Image image) {
         //Process image data
         ByteBuffer buffer;
@@ -453,21 +474,20 @@ public class Camera2Service extends Service {
                 //socket.connect(new InetSocketAddress("176.107.187.129", 1500), 5000);
                 socket.connect(new InetSocketAddress(app.pref.IP, 1500), 5000);
                 Log.d(TAG, "socket.connected");
-                isSocketInProgress = false;
             }
             /*DataInputStream in=new DataInputStream(new BufferedInputStream(socket.getInputStream()));
             String message=in.readUTF();
             Log.d(TAG, message);*/
 
 
-            isSocketInProgress = true;
+            //isSocketInProgress = true;
 
             dataOutputStream = new DataOutputStream(socket.getOutputStream());
             dataOutputStream.write(bytes);
-            //dataOutputStream.flush();
+            dataOutputStream.flush();
             dataOutputStream.writeUTF("EOF");
             dataOutputStream.flush();
-            //Log.d(TAG, "send success " + bytes.length);
+            Log.d(TAG, "send success " + bytes.length + " "+isCreationImage);
             //dataOutputStream.close();
 
             //BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -477,7 +497,7 @@ public class Camera2Service extends Service {
             BufferedReader br = new BufferedReader(isr);
             String message = br.readLine();*/
             //Log.d(TAG, "read buffer " + message);
-            isSocketInProgress = false;
+
 
 
             //Get the return message from the server
@@ -498,7 +518,6 @@ public class Camera2Service extends Service {
                 try {
                     socket.close();
                     socket = null;
-                    isSocketInProgress = false;
                 } catch (IOException e1) {
                     e1.printStackTrace();
                 }
@@ -566,9 +585,11 @@ public class Camera2Service extends Service {
         socketThread = new Thread(new Runnable() {
             public void run() {
                 while (!isStop) {
-                    if(jpegData!=null && jpegData.length>0){
+                    if(jpegData!=null && jpegData.length>0 /*&& !isCreationImage*/){
+                        isSocketInProgress = true;
                         sendFileToServer(jpegData);
                         //sendFileToServer(jpegData.clone());
+                        isSocketInProgress = false;
                     }
                     try {
                         Thread.sleep((long) (1000 / app.pref.fps));
@@ -580,6 +601,8 @@ public class Camera2Service extends Service {
         });
         socketThread.start();
     }
+
+
 
 
     private void showNotificationsNew() {

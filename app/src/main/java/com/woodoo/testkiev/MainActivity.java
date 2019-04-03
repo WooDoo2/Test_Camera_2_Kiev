@@ -206,8 +206,9 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
 
                 finish();
             }else{
-                serviceParamsStart();
-                cameraServiceStart();
+                app.makeToast("Thanks");
+                //serviceParamsStart();
+                //cameraServiceStart();
             }
         }
     }
@@ -295,7 +296,7 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
                 app.pref.exposure = 0;
                 app.pref.size_x = 640;
                 app.pref.size_y = 480;
-                app.pref.fps = 1;
+                app.pref.fps = 15;
                 app.pref.rotate = 90;
                 break;
             case R.id.btnChangeSettings2:
@@ -304,16 +305,10 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
                 app.pref.exposure = 500000000L;
                 app.pref.size_x = 300;
                 app.pref.size_y = 300;
-                app.pref.fps = 15;
+                app.pref.fps = 10;
                 app.pref.rotate = 10;
                 break;
         }
-        /*Intent i = new Intent(this, Camera2Service.class);
-        i.setAction(ServiceParams.COMMAND_STOP_SERVER);
-        startService(i);
-*/
-
-
 
         Intent i2 = new Intent(this, Camera2Service.class);
         i2.setAction(ServiceParams.COMMAND_CHANGE_SETTINGS);

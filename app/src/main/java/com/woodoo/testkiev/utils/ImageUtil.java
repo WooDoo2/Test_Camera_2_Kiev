@@ -69,8 +69,22 @@ public class ImageUtil {
         byte[] byteArray = stream.toByteArray();
         storedBitmap.recycle();
         return byteArray;
-
     }
+
+    /*public static byte[] imageRotate(byte[] data, int degrees) {
+        Bitmap storedBitmap = BitmapFactory.decodeByteArray(data, 0, data.length, null);
+        if(degrees>0){
+            Matrix mat = new Matrix();
+            mat.postRotate(degrees);  // angle is the desired angle you wish to rotate
+            storedBitmap = Bitmap.createBitmap(storedBitmap, 0, 0, storedBitmap.getWidth(), storedBitmap.getHeight(), mat, true);
+        }
+        ByteArrayOutputStream stream = new ByteArrayOutputStream();
+        //storedBitmap.compress(Bitmap.CompressFormat.JPEG, QUALITY, stream);
+        storedBitmap.compress(Bitmap.CompressFormat.PNG, 0, stream);
+        byte[] byteArray = stream.toByteArray();
+        storedBitmap.recycle();
+        return byteArray;
+    }*/
 
     public static byte[] rotateBytes(final byte[] yuv,
                                             final int width,
