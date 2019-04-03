@@ -178,8 +178,6 @@ public class Camera2Service extends Service {
                 Image img = reader.acquireLatestImage();
                 if (img != null /*&& !isSocketInProgress*/) {
                     if (System.currentTimeMillis() > cameraCaptureStartTime + CAMERA_CALIBRATION_DELAY) {
-                        //processImage(img);
-                        //
                         //byte[] jpegData = new byte[buffer.capacity()];
                         //buffer.get(bytes);
                         //byte[] jpegData = new byte[buffer.remaining()];
@@ -188,19 +186,14 @@ public class Camera2Service extends Service {
                         jpegData = new byte[buffer.remaining()]; // makes byte array large enough to hold image
                         buffer.get(jpegData);*/
 
-                        //jpegData = null;
-                        //jpegData = new byte[0];
                         jpegData = ImageUtil.imageToByteArray(img);
+                        if(app.pref.rotate>0){
+                            jpegData = ImageUtil.imageRotate(jpegData, app.pref.rotate);
+                        }
 
+                        //jpegData = ImageUtil.rotateBytes(jpegData, img.getWidth(), img.getHeight(), 180);
+                        //jpegData = ImageUtil.rotateYUV420Degree90(jpegData.clone(), img.getWidth(), img.getHeight());
 
-                        /*if(!isSocketInProgress){
-                        Thread t = new Thread(new Runnable() {
-                            public void run() {
-                                sendFileToServer(jpegData);
-                            }
-                        });
-                        t.start();
-                    }*/
                     }
 
                 } else {
@@ -240,6 +233,8 @@ public class Camera2Service extends Service {
         try {
             for (String cameraId : manager.getCameraIdList()) {
                 CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
+                int rotation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
+                Log.d(TAG, rotation+"");
                 int cOrientation = characteristics.get(CameraCharacteristics.LENS_FACING);
                 if (cOrientation == CAMERACHOICE) {
                     return cameraId;
@@ -267,13 +262,15 @@ public class Camera2Service extends Service {
             }
 
             if (intent.getAction().equals(ServiceParams.COMMAND_CHANGE_SETTINGS)) {
+                jpegData = null;
+                restartCamera();
                 /*if (cameraDevice != null) {
                     cameraDevice.close();
                     cameraDevice = null;
                 }
 
                 readyCamera();*/
-                restartCamera();
+
             }
 
         }
@@ -318,10 +315,7 @@ public class Camera2Service extends Service {
     @Override
     public void onDestroy() {
         //Log.e(TAG, "onDestroy");
-        if (cameraDevice != null) {
-            cameraDevice.close();
-            cameraDevice = null;
-        }
+
 
         if (session != null) {
             try {
@@ -330,6 +324,11 @@ public class Camera2Service extends Service {
                 Log.e(TAG, e.getMessage());
             }
             session.close();
+        }
+
+        if (cameraDevice != null) {
+            cameraDevice.close();
+            cameraDevice = null;
         }
 
         isStop = true;
@@ -346,6 +345,16 @@ public class Camera2Service extends Service {
             wfl.release();
         }catch (Exception e){
 
+        }
+
+        if (socket != null) {
+            try {
+                socket.close();
+                socket = null;
+                isSocketInProgress = false;
+            } catch (IOException e1) {
+                e1.printStackTrace();
+            }
         }
 
 
@@ -382,6 +391,8 @@ public class Camera2Service extends Service {
                 //captureRequestBuilder.set(CaptureRequest.SENSOR_EXPOSURE_TIME, 500000000L);//0.5s
                 captureBuilder.set(CaptureRequest.SENSOR_EXPOSURE_TIME, app.pref.exposure);
             }
+
+            //captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, app.pref.rotate);
 
             return captureBuilder.build();
         } catch (Exception e) {
@@ -437,10 +448,10 @@ public class Camera2Service extends Service {
         DataOutputStream dataOutputStream = null;
         try {
             if (socket == null || socket.isClosed()) {
-                //socket = new Socket("176.107.187.129", 1502);
                 socket = new Socket();
                 socket.setKeepAlive(true);
-                socket.connect(new InetSocketAddress("176.107.187.129", 1500), 5000);
+                //socket.connect(new InetSocketAddress("176.107.187.129", 1500), 5000);
+                socket.connect(new InetSocketAddress(app.pref.IP, 1500), 5000);
                 Log.d(TAG, "socket.connected");
                 isSocketInProgress = false;
             }
@@ -453,10 +464,10 @@ public class Camera2Service extends Service {
 
             dataOutputStream = new DataOutputStream(socket.getOutputStream());
             dataOutputStream.write(bytes);
-            dataOutputStream.flush();
+            //dataOutputStream.flush();
             dataOutputStream.writeUTF("EOF");
             dataOutputStream.flush();
-            Log.d(TAG, "send success " + bytes.length);
+            //Log.d(TAG, "send success " + bytes.length);
             //dataOutputStream.close();
 
             //BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream()));

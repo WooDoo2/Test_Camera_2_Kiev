@@ -15,6 +15,8 @@ public class MyPreferences {
     public int size_y;
     public long exposure;
     public float fps;
+    public int rotate=0;
+    public String IP="";
 
 
     public MyPreferences(Context ctx) {
@@ -35,7 +37,10 @@ public class MyPreferences {
         size_x = 640;
         size_y = 480;
         exposure = 0;
-        fps = 10;
+        fps = 1;
+        rotate = 0;
+        IP = sPref.getString("IP", "176.107.187.129");
+
         /*cameraId = sPref.getInt("cameraId", 0);
         zoomLevel = sPref.getFloat("zoomLevel", 0);
         isFlash = sPref.getBoolean("isFlash", false);
@@ -48,13 +53,14 @@ public class MyPreferences {
     public void save() {
         SharedPreferences sPref = PreferenceManager.getDefaultSharedPreferences(context);
         SharedPreferences.Editor ed = sPref.edit();
-        ed.putInt("cameraId", cameraId);
+        /*ed.putInt("cameraId", cameraId);
         ed.putFloat("zoomLevel", zoomLevel);
         ed.putBoolean("isFlash", isFlash);
         ed.putInt("iso", iso);
         ed.putInt("size_x", size_x);
         ed.putInt("size_y", size_y);
-        ed.putLong("exposure", exposure);
+        ed.putLong("exposure", exposure);*/
+        ed.putString("IP", IP);
 
         /*ed.putString("storageUri", storageUri.toString());
         ed.putString("deleteRecords", deleteRecords);

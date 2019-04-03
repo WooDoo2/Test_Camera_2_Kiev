@@ -13,6 +13,7 @@ import android.support.v7.widget.Toolbar;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
@@ -26,6 +27,7 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
     private static final int REQUEST_CAMERA_PERMISSION = 200;
     private TextView tvDetails;
     private DrawerLayout drawer;
+    private Button btnStartStop;
 
 
 
@@ -36,13 +38,43 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.activity_main);
         initMain();
+        initMain2();
 
         if(checkPermissions()){
             serviceParamsStart();
-            cameraServiceStart();
+            //cameraServiceStart();
         }
 
 
+    }
+
+    private void initMain2() {
+        final EditText editIP = findViewById(R.id.editIP);
+        editIP.setText(app.pref.IP);
+
+        btnStartStop = findViewById(R.id.btnStartStop);
+        btnStartStop.setTag(false);
+        btnStartStop.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(editIP.getText().equals("")){return;}
+                app.pref.IP =editIP.getText().toString();
+                app.pref.save();
+
+                boolean  status = !(boolean) v.getTag();
+                if(status){
+                    //serviceParamsStart();
+                    cameraServiceStart();
+                    btnStartStop.setText("STOP");
+                } else{
+                    //serviceParamsStop();
+                    cameraServiceStop();
+                    btnStartStop.setText("START");
+                }
+                btnStartStop.setTag(status);
+
+            }
+        });
     }
 
     private boolean checkPermissions() {
@@ -57,6 +89,12 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
     private void cameraServiceStart() {
         Intent i = new Intent(this, Camera2Service.class);
         i.setAction(ServiceParams.COMMAND_START);
+        startService(i);
+    }
+
+    private void cameraServiceStop() {
+        Intent i = new Intent(this, Camera2Service.class);
+        i.setAction(ServiceParams.COMMAND_STOP_SERVER);
         startService(i);
     }
 
@@ -163,13 +201,8 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
             if (grantResults[0] == PackageManager.PERMISSION_DENIED) {
                 app.makeToast("need permisions");
 
-                Intent i = new Intent(this, ServiceParams.class);
-                i.setAction(ServiceParams.COMMAND_STOP_SERVER);
-                startService(i);
-
-                Intent i2 = new Intent(this, Camera2Service.class);
-                i2.setAction(ServiceParams.COMMAND_STOP_SERVER);
-                startService(i2);
+                serviceParamsStop();
+                cameraServiceStop();
 
                 finish();
             }else{
@@ -263,6 +296,7 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
                 app.pref.size_x = 640;
                 app.pref.size_y = 480;
                 app.pref.fps = 1;
+                app.pref.rotate = 90;
                 break;
             case R.id.btnChangeSettings2:
                 app.pref.zoomLevel = 10;
@@ -271,6 +305,7 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
                 app.pref.size_x = 300;
                 app.pref.size_y = 300;
                 app.pref.fps = 15;
+                app.pref.rotate = 10;
                 break;
         }
         /*Intent i = new Intent(this, Camera2Service.class);
@@ -292,6 +327,7 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
         tvDetails.append("size_x="+app.pref.size_x+"\n");
         tvDetails.append("size_y="+app.pref.size_y+"\n");
         tvDetails.append("fps="+app.pref.fps+"\n");
+        tvDetails.append("rotate="+app.pref.rotate+"\n");
         //tvDetails.append("iso="+app.pref.iso+"\n");
         //tvDetails.append("exposure="+app.pref.exposure+"\n");
 

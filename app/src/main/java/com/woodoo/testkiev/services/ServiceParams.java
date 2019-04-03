@@ -9,6 +9,7 @@ import android.widget.Switch;
 import com.woodoo.testkiev.App;
 import com.woodoo.testkiev.R;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
@@ -43,7 +44,7 @@ public class ServiceParams extends Service {
 
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null && (intent.getAction() instanceof String)) {
-            Log.d(TAG, "server onStartCommand "+intent.getAction());
+            Log.d(TAG, "server onStartCommand " + intent.getAction());
             if (intent.getAction().equals(COMMAND_STOP_SERVER)) {
                 stopSelf();
             }
@@ -62,7 +63,8 @@ public class ServiceParams extends Service {
             try {
                 timerThread.interrupt();
                 timerThread = null;
-            } catch (Exception e) {}
+            } catch (Exception e) {
+            }
         }
 
 
@@ -77,14 +79,11 @@ public class ServiceParams extends Service {
                     getCommandFromSocket();
 
 
-
                 }
             }
         });
         timerThread.start();
     }
-
-
 
 
     @Override
@@ -106,7 +105,6 @@ public class ServiceParams extends Service {
     }
 
 
-
     private void anons_action(int act) {
         Intent intent = new Intent(BROADCAST_BACK);
         intent.putExtra("action", act);
@@ -117,7 +115,8 @@ public class ServiceParams extends Service {
         Socket socket = null;
         try {
             socket = new Socket();
-            socket.connect(new InetSocketAddress("176.107.187.129", 1507), 5000);
+            //socket.connect(new InetSocketAddress("176.107.187.129", 1507), 5000);
+            socket.connect(new InetSocketAddress(app.pref.IP, 1507), 5000);
             Log.d(TAG, "socket.connected");
             BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             String newString = input.readLine();
@@ -126,51 +125,77 @@ public class ServiceParams extends Service {
             if (newString != null) {
                 Log.d(TAG, newString);
                 JSONObject json = new JSONObject(newString);
-                if(json.has("zoom")){
+                if (json.has("zoom")) {
                     app.pref.zoomLevel = (float) json.getDouble("zoom");
                 }
-                if(json.has("iso")){
+                if (json.has("iso")) {
                     app.pref.iso = json.getInt("iso");
                 }
-                if(json.has("exposure")){
-                    app.pref.exposure = (long) (json.getDouble("exposure")*1000000000L);
-                                                                                //500000000L
+                if (json.has("exposure")) {
+                    app.pref.exposure = (long) (json.getDouble("exposure") * 1000000000L);
+                    //500000000L
                 }
-                if(json.has("size_x")){
+                if (json.has("size_x")) {
                     app.pref.size_x = json.getInt("size_x");
                 }
-                if(json.has("size_y")){
+                if (json.has("size_y")) {
                     app.pref.size_y = json.getInt("size_y");
                 }
-                if(json.has("fps")){
+                if (json.has("fps")) {
                     double fps = json.getDouble("fps");
-                    if(fps>20){fps=20;}
-                    if(fps<0.1){fps=1;}
-                    app.pref.fps = (float)fps ;
+                    if (fps > 20) {
+                        fps = 20;
+                    }
+                    if (fps < 0.1) {
+                        fps = 1;
+                    }
+                    app.pref.fps = (float) fps;
+                }
+                if (json.has("rotate")) {
+                    app.pref.rotate = json.getInt("rotate");
                 }
                 //app.pref.save();
                 //lastStringData = newString;
                 anons_action(ACTION_NEW_SETTINGS);
 
-                Intent i = new Intent(this, Camera2Service.class);
-                i.setAction(ServiceParams.COMMAND_CHANGE_SETTINGS);
-                startService(i);
+                if (json.has("command")) {
+                    String cc = json.getString("command");
+                    if(cc.equals("start")){
+                        sendCommandToCamera(ServiceParams.COMMAND_START);
+                    }else if(cc.equals("stop")){
+                        sendCommandToCamera(ServiceParams.COMMAND_STOP_SERVER);
+                    }else if(cc.equals("restart")){
+                        sendCommandToCamera(ServiceParams.COMMAND_STOP_SERVER);
+                        sendCommandToCamera(ServiceParams.COMMAND_START);
+                    }
 
+                    return;
+                }
+                sendCommandToCamera(ServiceParams.COMMAND_CHANGE_SETTINGS);
                 //stopSelf();
             }
 
+
+        } catch (JSONException e) {
+            Log.e(TAG, e.toString());
         } catch (Exception e) {
             //Log.e(TAG, e.toString());
         } finally {
-            if(socket!=null){
+            if (socket != null) {
                 try {
                     socket.close();
-                    socket=null;
+                    socket = null;
                 } catch (IOException e1) {
-                    e1.printStackTrace();
+
                 }
             }
         }
+    }
+
+    private void sendCommandToCamera(String command) {
+        Intent i = new Intent(this, Camera2Service.class);
+        i.setAction(command);
+        startService(i);
     }
 
 }
