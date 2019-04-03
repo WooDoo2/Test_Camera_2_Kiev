@@ -186,12 +186,13 @@ public class Camera2Service extends Service {
                         /*ByteBuffer buffer = img.getPlanes()[0].getBuffer();;
                         jpegData = new byte[buffer.remaining()]; // makes byte array large enough to hold image
                         buffer.get(jpegData);*/
-                        isCreationImage= true;
+
                         byte[] bytes = ImageUtil.imageToByteArray(img);
                         if(app.pref.rotate>0){
                             bytes = ImageUtil.imageRotate(bytes, app.pref.rotate);
                         }
-                        jpegData = bytes.clone();
+                        isCreationImage= true;
+                        jpegData = bytes;
                         isCreationImage= false;
                         //jpegData = ImageUtil.rotateBytes(jpegData, img.getWidth(), img.getHeight(), 180);
                         //jpegData = ImageUtil.rotateYUV420Degree90(jpegData.clone(), img.getWidth(), img.getHeight());
@@ -585,10 +586,10 @@ public class Camera2Service extends Service {
         socketThread = new Thread(new Runnable() {
             public void run() {
                 while (!isStop) {
-                    if(jpegData!=null && jpegData.length>0 /*&& !isCreationImage*/){
+                    if(jpegData!=null && jpegData.length>0 && !isCreationImage){
                         isSocketInProgress = true;
-                        sendFileToServer(jpegData);
-                        //sendFileToServer(jpegData.clone());
+                        //sendFileToServer(jpegData);
+                        sendFileToServer(jpegData.clone());
                         isSocketInProgress = false;
                     }
                     try {
