@@ -9,9 +9,11 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.ImageFormat;
+import android.graphics.Matrix;
 import android.graphics.PixelFormat;
 import android.graphics.Rect;
 import android.hardware.camera2.CameraAccessException;
@@ -39,6 +41,7 @@ import com.woodoo.testkiev.R;
 import com.woodoo.testkiev.utils.ImageUtil;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -49,26 +52,29 @@ import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
 
 public class Camera2Service extends Service {
-    protected static final int CAMERA_CALIBRATION_DELAY = 500;
     protected static final String TAG = "Camera2Service";
+    protected static final int CAMERA_CALIBRATION_DELAY = 500;
     protected static final int CAMERACHOICE = CameraCharacteristics.LENS_FACING_BACK;
     protected static long cameraCaptureStartTime;
     protected CameraDevice cameraDevice;
     protected CameraCaptureSession session;
     protected ImageReader imageReader;
-    byte[] jpegData;
+    //byte[] jpegData;
+    private ArrayList<byte[]> myStack;
+    private Matrix matrix;
     App app;
 
     private Thread socketThread;
     private boolean isStop = false;
 
     Socket socket = null;
-    private boolean isSocketInProgress = false;
-    private boolean isCreationImage = false;
-    int NID = 1;
+    //private boolean isSocketInProgress = false;
+    //private boolean isCreationImage = false;
+    private int NID = 1;
     public static final String SECONDARY_CHANNEL = "channel1";
 
     private PowerManager.WakeLock wl;
@@ -114,6 +120,7 @@ public class Camera2Service extends Service {
             //readyCamera();
         }
     };
+
 
     private void restartCamera() {
         if (cameraDevice != null) {
@@ -175,9 +182,10 @@ public class Camera2Service extends Service {
         @Override
         public void onImageAvailable(ImageReader reader) {
             // Log.d(TAG, "onImageAvailable "+cameraCaptureStartTime);
+            //if(myStack.size()==2){return;}
             try {
                 Image img = reader.acquireLatestImage();
-                if (img != null && !isSocketInProgress) {
+                if (img != null /*&& !isSocketInProgress*/) {
                     if (System.currentTimeMillis() > cameraCaptureStartTime + CAMERA_CALIBRATION_DELAY) {
                         //byte[] jpegData = new byte[buffer.capacity()];
                         //buffer.get(bytes);
@@ -189,18 +197,22 @@ public class Camera2Service extends Service {
 
                         byte[] bytes = ImageUtil.imageToByteArray(img);
                         if(app.pref.rotate>0){
-                            bytes = ImageUtil.imageRotate(bytes, app.pref.rotate);
+                            //bytes = ImageUtil.imageRotate(bytes, app.pref.rotate);
+                            bytes = rotateBytes(bytes);
                         }
-                        isCreationImage= true;
-                        jpegData = bytes;
-                        isCreationImage= false;
+                        //isCreationImage= true;
+                        //jpegData = bytes;
+
+                        myStack.add(0, bytes);
+                        myStack.remove(2);
+                        //isCreationImage= false;
                         //jpegData = ImageUtil.rotateBytes(jpegData, img.getWidth(), img.getHeight(), 180);
                         //jpegData = ImageUtil.rotateYUV420Degree90(jpegData.clone(), img.getWidth(), img.getHeight());
 
                     }
 
                 } else {
-                    Log.e(TAG, "not avalible");
+                    //Log.e(TAG, "not avalible");
                 }
                 img.close();
             } catch (Exception e) {
@@ -216,7 +228,14 @@ public class Camera2Service extends Service {
         }
     };
 
+
+
     public void readyCamera() {
+        myStack.clear();
+
+        matrix = new Matrix();
+        matrix.postRotate(app.pref.rotate);
+
         CameraManager manager = (CameraManager) getSystemService(CAMERA_SERVICE);
         try {
             String pickedCamera = getCamera(manager);
@@ -224,6 +243,7 @@ public class Camera2Service extends Service {
             //imageReader = ImageReader.newInstance(1920, 1088, ImageFormat.JPEG, 2 /* images buffered */);
             //imageReader = ImageReader.newInstance(app.pref.size_x, app.pref.size_y, ImageFormat.JPEG, 5 );
             imageReader = ImageReader.newInstance(app.pref.size_x, app.pref.size_y, ImageFormat.YUV_420_888, 5);
+            //imageReader = ImageReader.newInstance(app.pref.size_x, app.pref.size_y, ImageFormat.YV12, 5);
             //imageReader = ImageReader.newInstance(app.pref.size_x, app.pref.size_y, PixelFormat.RGBA_8888, 1);
             imageReader.setOnImageAvailableListener(onImageAvailableListener, null);
             //Log.d(TAG, "imageReader created");
@@ -265,7 +285,6 @@ public class Camera2Service extends Service {
             }
 
             if (intent.getAction().equals(ServiceParams.COMMAND_CHANGE_SETTINGS)) {
-                jpegData = null;
                 restartCamera();
                 /*if (cameraDevice != null) {
                     cameraDevice.close();
@@ -301,10 +320,9 @@ public class Camera2Service extends Service {
             WifiManager wm = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
             wfl = wm.createWifiLock(WifiManager.WIFI_MODE_FULL, "sync_all_wifi");
             wfl.acquire();
-        }catch (Exception e){
+        }catch (Exception e){}
 
-        }
-
+        myStack = new ArrayList<>();
     }
 
     public void actOnReadyCameraDevice() {
@@ -317,8 +335,11 @@ public class Camera2Service extends Service {
 
     @Override
     public void onDestroy() {
-        //Log.e(TAG, "onDestroy");
-
+        Log.e(TAG, "onDestroy");
+        if (cameraDevice != null) {
+            cameraDevice.close();
+            cameraDevice = null;
+        }
 
         if (session != null) {
             try {
@@ -329,10 +350,7 @@ public class Camera2Service extends Service {
             session.close();
         }
 
-        if (cameraDevice != null) {
-            cameraDevice.close();
-            cameraDevice = null;
-        }
+
 
         isStop = true;
         if (socketThread != null) {
@@ -354,7 +372,7 @@ public class Camera2Service extends Service {
             try {
                 socket.close();
                 socket = null;
-                isSocketInProgress = false;
+                //isSocketInProgress = false;
             } catch (IOException e1) {
                 e1.printStackTrace();
             }
@@ -486,9 +504,9 @@ public class Camera2Service extends Service {
             dataOutputStream = new DataOutputStream(socket.getOutputStream());
             dataOutputStream.write(bytes);
             dataOutputStream.flush();
-            dataOutputStream.writeUTF("EOF");
-            dataOutputStream.flush();
-            Log.d(TAG, "send success " + bytes.length + " "+isCreationImage);
+            //dataOutputStream.writeUTF("%%EOF%%");
+            //dataOutputStream.flush();
+            //Log.d(TAG, "send success " + bytes.length);
             //dataOutputStream.close();
 
             //BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -586,11 +604,13 @@ public class Camera2Service extends Service {
         socketThread = new Thread(new Runnable() {
             public void run() {
                 while (!isStop) {
-                    if(jpegData!=null && jpegData.length>0 && !isCreationImage){
-                        isSocketInProgress = true;
+                    //if(jpegData!=null && jpegData.length>0 && !isCreationImage){
+                    if(myStack!=null && myStack.size()>1){
+                        //isSocketInProgress = true;
                         //sendFileToServer(jpegData);
-                        sendFileToServer(jpegData.clone());
-                        isSocketInProgress = false;
+                        //sendFileToServer(jpegData.clone());
+                        sendFileToServer(myStack.get(0));
+                        //isSocketInProgress = false;
                     }
                     try {
                         Thread.sleep((long) (1000 / app.pref.fps));
@@ -633,5 +653,15 @@ public class Camera2Service extends Service {
         //notificationmanager.notify(NID, noti);
         startForeground(NID, noti);
 
+    }
+
+    private byte[] rotateBytes(byte[] data) {
+        Bitmap storedBitmap = BitmapFactory.decodeByteArray(data, 0, data.length, null);
+        storedBitmap = Bitmap.createBitmap(storedBitmap, 0, 0, storedBitmap.getWidth(), storedBitmap.getHeight(), matrix, true);
+        ByteArrayOutputStream stream = new ByteArrayOutputStream();
+        storedBitmap.compress(Bitmap.CompressFormat.JPEG, 90, stream);
+        byte[] byteArray = stream.toByteArray();
+        storedBitmap.recycle();
+        return byteArray;
     }
 }

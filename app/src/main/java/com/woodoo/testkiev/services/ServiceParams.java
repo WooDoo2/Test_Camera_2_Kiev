@@ -166,6 +166,11 @@ public class ServiceParams extends Service {
                         sendCommandToCamera(ServiceParams.COMMAND_STOP_SERVER);
                     }else if(cc.equals("restart")){
                         sendCommandToCamera(ServiceParams.COMMAND_STOP_SERVER);
+                        try {
+                            Thread.sleep(2000);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
                         sendCommandToCamera(ServiceParams.COMMAND_START);
                     }
 

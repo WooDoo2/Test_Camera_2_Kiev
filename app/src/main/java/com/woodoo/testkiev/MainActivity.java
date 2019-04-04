@@ -288,25 +288,24 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
 
 
     public void OnChaneSettingsClick(View view) {
-
         switch (view.getId()) {
             case R.id.btnChangeSettings1:
                 app.pref.zoomLevel = 0;
                 app.pref.iso = 100;
                 app.pref.exposure = 0;
-                app.pref.size_x = 640;
-                app.pref.size_y = 480;
-                app.pref.fps = 15;
-                app.pref.rotate = 90;
+                app.pref.size_x = 500;
+                app.pref.size_y = 500;
+                app.pref.fps = 5;
+                app.pref.rotate = 45;
                 break;
             case R.id.btnChangeSettings2:
                 app.pref.zoomLevel = 10;
                 app.pref.iso = 10000;
                 app.pref.exposure = 500000000L;
-                app.pref.size_x = 300;
-                app.pref.size_y = 300;
+                app.pref.size_x = 640;
+                app.pref.size_y = 480;
                 app.pref.fps = 10;
-                app.pref.rotate = 10;
+                app.pref.rotate = 90;
                 break;
         }
 
@@ -323,8 +322,8 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
         tvDetails.append("size_y="+app.pref.size_y+"\n");
         tvDetails.append("fps="+app.pref.fps+"\n");
         tvDetails.append("rotate="+app.pref.rotate+"\n");
-        //tvDetails.append("iso="+app.pref.iso+"\n");
-        //tvDetails.append("exposure="+app.pref.exposure+"\n");
+        tvDetails.append("iso="+app.pref.iso+"\n");
+        tvDetails.append("exposure="+app.pref.exposure+"\n");
 
     }
 

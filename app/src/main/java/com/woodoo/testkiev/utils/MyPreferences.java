@@ -37,7 +37,7 @@ public class MyPreferences {
         size_x = 640;
         size_y = 480;
         exposure = 0;
-        fps = 1;
+        fps = (float) 1;
         rotate = 0;
         IP = sPref.getString("IP", "176.107.187.129");
 
