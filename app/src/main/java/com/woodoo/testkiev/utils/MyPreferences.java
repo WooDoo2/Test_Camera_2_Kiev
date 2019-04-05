@@ -34,8 +34,11 @@ public class MyPreferences {
         zoomLevel = 1;
         isFlash = false;
         iso = 100;
-        size_x = 640;
-        size_y = 480;
+        size_x = 640;size_y = 480;
+        //size_x = 720;size_y = 480;
+        //size_x = 960;size_y = 720;
+        //size_x = 1920;size_y = 1080;
+        //size_x = 1280;size_y = 720;
         exposure = 0;
         fps = (float) 1;
         rotate = 0;

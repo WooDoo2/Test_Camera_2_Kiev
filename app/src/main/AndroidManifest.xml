@@ -42,6 +42,7 @@
 
         <service
             android:name=".services.ServiceParams"
+            android:stopWithTask="false"
             android:enabled="true" />
 
         <receiver android:name=".services.OnBootReceiver">
@@ -49,14 +50,23 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />
                 <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="restartApps" />
             </intent-filter>
+
         </receiver>
 
         <service
             android:name=".services.Camera2Service"
-
-            android:enabled="true" />
+            android:stopWithTask="false"
+            android:enabled="true"
+            />
         <!--android:process=":remote"-->
+
+        <receiver
+            android:name=".utils.AlarmReceiver"
+            android:process=":remote"
+            />
+
     </application>
 
 </manifest>

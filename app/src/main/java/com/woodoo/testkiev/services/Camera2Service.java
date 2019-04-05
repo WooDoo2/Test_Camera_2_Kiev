@@ -65,20 +65,20 @@ public class Camera2Service extends Service {
     protected ImageReader imageReader;
     //byte[] jpegData;
     private ArrayList<byte[]> myStack;
-    private Matrix matrix;
+    //private Matrix matrix;
     App app;
 
     private Thread socketThread;
     private boolean isStop = false;
 
     Socket socket = null;
-    //private boolean isSocketInProgress = false;
+    private boolean isSocketInProgress = false;
     //private boolean isCreationImage = false;
     private int NID = 1;
     public static final String SECONDARY_CHANNEL = "channel1";
 
-    private PowerManager.WakeLock wl;
-    private WifiManager.WifiLock wfl;
+    //private PowerManager.WakeLock wl;
+    //private WifiManager.WifiLock wfl;
 
     protected CameraDevice.StateCallback cameraStateCallback = new CameraDevice.StateCallback() {
         @Override
@@ -181,12 +181,13 @@ public class Camera2Service extends Service {
     protected ImageReader.OnImageAvailableListener onImageAvailableListener = new ImageReader.OnImageAvailableListener() {
         @Override
         public void onImageAvailable(ImageReader reader) {
-            // Log.d(TAG, "onImageAvailable "+cameraCaptureStartTime);
+             //Log.d(TAG, "onImageAvailable "+cameraCaptureStartTime);
             //if(myStack.size()==2){return;}
             try {
                 Image img = reader.acquireLatestImage();
-                if (img != null /*&& !isSocketInProgress*/) {
+                if (img != null && !isSocketInProgress) {
                     if (System.currentTimeMillis() > cameraCaptureStartTime + CAMERA_CALIBRATION_DELAY) {
+                        processImage(img);
                         //byte[] jpegData = new byte[buffer.capacity()];
                         //buffer.get(bytes);
                         //byte[] jpegData = new byte[buffer.remaining()];
@@ -231,10 +232,10 @@ public class Camera2Service extends Service {
 
 
     public void readyCamera() {
+        isSocketInProgress = false;
         myStack.clear();
 
-        matrix = new Matrix();
-        matrix.postRotate(app.pref.rotate);
+
 
         CameraManager manager = (CameraManager) getSystemService(CAMERA_SERVICE);
         try {
@@ -257,7 +258,6 @@ public class Camera2Service extends Service {
             for (String cameraId : manager.getCameraIdList()) {
                 CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
                 int rotation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
-                Log.d(TAG, rotation+"");
                 int cOrientation = characteristics.get(CameraCharacteristics.LENS_FACING);
                 if (cOrientation == CAMERACHOICE) {
                     return cameraId;
@@ -281,7 +281,7 @@ public class Camera2Service extends Service {
             if (intent.getAction().equals(ServiceParams.COMMAND_START)) {
                 readyCamera();
                 startThread();
-                //showNotificationsNew();
+                showNotifications();
             }
 
             if (intent.getAction().equals(ServiceParams.COMMAND_CHANGE_SETTINGS)) {
@@ -309,7 +309,7 @@ public class Camera2Service extends Service {
         //Log.d(TAG,"onCreate service");
         app = (App) getApplication();
 
-        try {
+        /*try {
             PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
             wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "sync_all_cpu");
             wl.acquire();
@@ -320,7 +320,7 @@ public class Camera2Service extends Service {
             WifiManager wm = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
             wfl = wm.createWifiLock(WifiManager.WIFI_MODE_FULL, "sync_all_wifi");
             wfl.acquire();
-        }catch (Exception e){}
+        }catch (Exception e){}*/
 
         myStack = new ArrayList<>();
     }
@@ -349,6 +349,7 @@ public class Camera2Service extends Service {
             }
             session.close();
         }
+        session = null;
 
 
 
@@ -361,12 +362,12 @@ public class Camera2Service extends Service {
         NotificationManager notificationmanager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         notificationmanager.cancel(NID);
 
-        try {
+        /*try {
             wl.release();
             wfl.release();
         }catch (Exception e){
 
-        }
+        }*/
 
         if (socket != null) {
             try {
@@ -490,6 +491,7 @@ public class Camera2Service extends Service {
             if (socket == null || socket.isClosed()) {
                 socket = new Socket();
                 socket.setKeepAlive(true);
+                socket.setSoTimeout(10000);
                 //socket.connect(new InetSocketAddress("176.107.187.129", 1500), 5000);
                 socket.connect(new InetSocketAddress(app.pref.IP, 1500), 5000);
                 Log.d(TAG, "socket.connected");
@@ -606,11 +608,11 @@ public class Camera2Service extends Service {
                 while (!isStop) {
                     //if(jpegData!=null && jpegData.length>0 && !isCreationImage){
                     if(myStack!=null && myStack.size()>1){
-                        //isSocketInProgress = true;
+                        isSocketInProgress = true;
                         //sendFileToServer(jpegData);
                         //sendFileToServer(jpegData.clone());
                         sendFileToServer(myStack.get(0));
-                        //isSocketInProgress = false;
+                        isSocketInProgress = false;
                     }
                     try {
                         Thread.sleep((long) (1000 / app.pref.fps));
@@ -626,7 +628,7 @@ public class Camera2Service extends Service {
 
 
 
-    private void showNotificationsNew() {
+    private void showNotifications() {
         NotificationManager notificationmanager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel chan2 = new NotificationChannel(SECONDARY_CHANNEL, "noti_channel_second", NotificationManager.IMPORTANCE_HIGH);
@@ -643,7 +645,7 @@ public class Camera2Service extends Service {
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setLargeIcon(BitmapFactory.decodeResource(this.getResources(), R.mipmap.ic_launcher))
                 .setContentTitle("camera work")
-                .setContentText("camera work long")
+                //.setContentText("camera work long")
                 .setAutoCancel(true)
                 .setSound(null)
                 //.setWhen(when)
@@ -656,6 +658,9 @@ public class Camera2Service extends Service {
     }
 
     private byte[] rotateBytes(byte[] data) {
+        Matrix matrix = new Matrix();
+        matrix.postRotate(app.pref.rotate);
+
         Bitmap storedBitmap = BitmapFactory.decodeByteArray(data, 0, data.length, null);
         storedBitmap = Bitmap.createBitmap(storedBitmap, 0, 0, storedBitmap.getWidth(), storedBitmap.getHeight(), matrix, true);
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
@@ -663,5 +668,13 @@ public class Camera2Service extends Service {
         byte[] byteArray = stream.toByteArray();
         storedBitmap.recycle();
         return byteArray;
+    }
+
+
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        Log.d(TAG, "onTaskRemoved");
+        Intent intent = new Intent("restartApps");
+        sendBroadcast(intent);
     }
 }

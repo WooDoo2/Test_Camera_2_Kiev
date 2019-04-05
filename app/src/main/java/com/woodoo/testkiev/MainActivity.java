@@ -1,6 +1,8 @@
 package com.woodoo.testkiev;
 
 import android.Manifest;
+import android.app.AlarmManager;
+import android.app.PendingIntent;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
@@ -20,6 +22,7 @@ import android.widget.TextView;
 
 import com.woodoo.testkiev.services.Camera2Service;
 import com.woodoo.testkiev.services.ServiceParams;
+import com.woodoo.testkiev.utils.AlarmReceiver;
 
 public class MainActivity extends ParentActivity /*implements TextureView.SurfaceTextureListener*/ {
     public static final String TAG = "mylog";
@@ -28,7 +31,6 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
     private TextView tvDetails;
     private DrawerLayout drawer;
     private Button btnStartStop;
-
 
 
     @Override
@@ -40,8 +42,8 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
         initMain();
         initMain2();
 
-        if(checkPermissions()){
-            serviceParamsStart();
+        if (checkPermissions()) {
+            serviceParamsStart(null);
             //cameraServiceStart();
         }
 
@@ -57,16 +59,18 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
         btnStartStop.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(editIP.getText().equals("")){return;}
-                app.pref.IP =editIP.getText().toString();
+                if (editIP.getText().equals("")) {
+                    return;
+                }
+                app.pref.IP = editIP.getText().toString();
                 app.pref.save();
 
-                boolean  status = !(boolean) v.getTag();
-                if(status){
+                boolean status = !(boolean) v.getTag();
+                if (status) {
                     //serviceParamsStart();
                     cameraServiceStart();
                     btnStartStop.setText("STOP");
-                } else{
+                } else {
                     //serviceParamsStop();
                     cameraServiceStop();
                     btnStartStop.setText("START");
@@ -98,10 +102,18 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
         startService(i);
     }
 
-    private void serviceParamsStart() {
+    public void serviceParamsStart(View v) {
         Intent i = new Intent(this, ServiceParams.class);
         i.setAction(ServiceParams.COMMAND_START);
         startService(i);
+
+
+        /*Intent alarmIntent = new Intent(this, AlarmReceiver.class);
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, alarmIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+        AlarmManager alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
+        alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 1000, 1000 * 6, pendingIntent);
+*/
+
     }
 
     private void serviceParamsStop() {
@@ -205,7 +217,7 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
                 cameraServiceStop();
 
                 finish();
-            }else{
+            } else {
                 app.makeToast("Thanks");
                 //serviceParamsStart();
                 //cameraServiceStart();
@@ -236,7 +248,6 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
     @Override
     protected void onDestroy() {
         super.onDestroy();
-
 
 
     }
@@ -293,17 +304,20 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
                 app.pref.zoomLevel = 0;
                 app.pref.iso = 100;
                 app.pref.exposure = 0;
-                app.pref.size_x = 500;
-                app.pref.size_y = 500;
-                app.pref.fps = 5;
+                app.pref.size_x = 300;app.pref.size_y = 300;
+                //app.pref.size_x = 960;app.pref.size_y = 720;
+
+                app.pref.fps = 1;
                 app.pref.rotate = 45;
+
                 break;
             case R.id.btnChangeSettings2:
                 app.pref.zoomLevel = 10;
                 app.pref.iso = 10000;
                 app.pref.exposure = 500000000L;
-                app.pref.size_x = 640;
-                app.pref.size_y = 480;
+                //app.pref.size_x = 700;app.pref.size_y = 700;
+                app.pref.size_x = 1920;
+                app.pref.size_y = 1080;
                 app.pref.fps = 10;
                 app.pref.rotate = 90;
                 break;
@@ -317,17 +331,15 @@ public class MainActivity extends ParentActivity /*implements TextureView.Surfac
     }
 
     private void updateTvDetails() {
-        tvDetails.setText("zoomLevel="+app.pref.zoomLevel+"\n");
-        tvDetails.append("size_x="+app.pref.size_x+"\n");
-        tvDetails.append("size_y="+app.pref.size_y+"\n");
-        tvDetails.append("fps="+app.pref.fps+"\n");
-        tvDetails.append("rotate="+app.pref.rotate+"\n");
-        tvDetails.append("iso="+app.pref.iso+"\n");
-        tvDetails.append("exposure="+app.pref.exposure+"\n");
+        tvDetails.setText("zoomLevel=" + app.pref.zoomLevel + "\n");
+        tvDetails.append("size_x=" + app.pref.size_x + "\n");
+        tvDetails.append("size_y=" + app.pref.size_y + "\n");
+        tvDetails.append("fps=" + app.pref.fps + "\n");
+        tvDetails.append("rotate=" + app.pref.rotate + "\n");
+        tvDetails.append("iso=" + app.pref.iso + "\n");
+        tvDetails.append("exposure=" + app.pref.exposure + "\n");
 
     }
 
-    public void OnStartPref(View view) {
-        serviceParamsStart();
-    }
+
 }

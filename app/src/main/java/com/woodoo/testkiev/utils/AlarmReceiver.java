@@ -1,22 +1,25 @@
-package com.woodoo.testkiev.services;
+package com.woodoo.testkiev.utils;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
 
-public class OnBootReceiver extends BroadcastReceiver {
+import com.woodoo.testkiev.services.ServiceParams;
+
+
+public class AlarmReceiver extends BroadcastReceiver {
+
     @Override
     public void onReceive(Context context, Intent intent) {
-        Log.d("mylog", " OnBootReceiver onReceive");
-        try {
-            Thread.sleep(2000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        Log.d("ServiceParams", " AlarmReceiver onReceive");
 
         Intent i = new Intent(context, ServiceParams.class);
+        i.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
+        i.setPackage(context.getPackageName());
         i.setAction(ServiceParams.COMMAND_START);
         context.startService(i);
+
+
     }
 }
