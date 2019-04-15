@@ -40,10 +40,12 @@ import com.woodoo.testkiev.MainActivity;
 import com.woodoo.testkiev.R;
 import com.woodoo.testkiev.utils.ImageUtil;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -611,7 +613,8 @@ public class Camera2Service extends Service {
                         isSocketInProgress = true;
                         //sendFileToServer(jpegData);
                         //sendFileToServer(jpegData.clone());
-                        sendFileToServer(myStack.get(0));
+                        //sendFileToServer(myStack.get(0));
+                        sendFileToServer(getBytesFromFile());
                         isSocketInProgress = false;
                     }
                     try {
@@ -625,7 +628,21 @@ public class Camera2Service extends Service {
         socketThread.start();
     }
 
-
+    private byte[] getBytesFromFile() {
+        File file = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/not_pay.jpg");
+        int size = (int) file.length();
+        byte[] bytes = new byte[size];
+        try {
+            BufferedInputStream buf = new BufferedInputStream(new FileInputStream(file));
+            buf.read(bytes, 0, bytes.length);
+            buf.close();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return bytes;
+    }
 
 
     private void showNotifications() {
